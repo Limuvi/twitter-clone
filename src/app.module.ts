@@ -1,10 +1,18 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  CacheModule,
+  Logger,
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthMiddleware } from './common/middlewares';
 import { JwtModule } from '@nestjs/jwt';
+import { RedisModule } from './redis/redis.module';
+import { redisConfig } from './redis/redis.config';
 
 @Module({
   imports: [
@@ -23,6 +31,7 @@ import { JwtModule } from '@nestjs/jwt';
       autoLoadEntities: true,
       synchronize: true,
     }),
+    RedisModule.registerAsync(redisConfig),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
