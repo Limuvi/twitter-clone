@@ -1,9 +1,19 @@
-import { Body, Controller, HttpCode, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common/exceptions';
 import { Response } from 'express';
+import { CurrentUser, PrivacyInfo, RefreshToken } from '../common/decorators';
+import { AuthGuard } from '../common/guards';
+import { CurrentUserData, PrivacyInfoData } from '../common/types';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
@@ -28,6 +38,7 @@ export class AuthController {
   @Post('signin')
   async signIn(
     @Body() dto: SignInDto,
+    @PrivacyInfo() info: PrivacyInfoData,
     @Res({ passthrough: true }) response: Response,
   ) {
     const user = await this.authService.validateUser(dto);
@@ -37,7 +48,57 @@ export class AuthController {
     }
 
     const accessToken = this.authService.getAccessToken(user);
+    const refreshToken = await this.authService.getRefreshToken(user.id, info);
+    const cookieOptions = this.authService.getRefreshTokenCookieOptions();
 
-    return { accessToken };
+    response.cookie('refreshToken', refreshToken, cookieOptions);
+    return { accessToken, refreshToken };
+  }
+
+  @UseGuards(AuthGuard)
+  @HttpCode(200)
+  @Post('signout')
+  async signOut(
+    @RefreshToken() token: string,
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const deleted = await this.authService.deleteRefreshToken(userId, token);
+
+    response.cookie('refreshToken', token, {
+      ...this.authService.getRefreshTokenCookieOptions(),
+      maxAge: 0,
+    });
+
+    if (!deleted) {
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @HttpCode(200)
+  @Post('refresh-token')
+  async refreshToken(
+    @RefreshToken() token: string,
+    @CurrentUser() user: CurrentUserData,
+    @PrivacyInfo() info: PrivacyInfoData,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const newToken = await this.authService.replaceRefreshToken(
+      user.id,
+      info,
+      token,
+    );
+
+    if (!newToken) {
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    const cookieOptions = this.authService.getRefreshTokenCookieOptions();
+    const accessToken = this.authService.getAccessToken(user);
+
+    response.cookie('refreshToken', newToken, cookieOptions);
+
+    return { accessToken, refreshToken: newToken };
   }
 }
