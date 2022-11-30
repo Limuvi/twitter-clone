@@ -71,11 +71,19 @@ export class SessionRepository {
 
   private async deleteByPattern(pattern: string): Promise<number> {
     const keys = await this.findKeys(pattern);
-    const count = await this.store.del(keys);
-    return count;
+
+    if (keys.length) {
+      const count = await this.store.del(keys);
+      return count;
+    }
+    return 0;
   }
 
   async deleteByUserId(userId: number | string): Promise<number> {
     return await this.deleteByPattern(this.getKey(userId, '*'));
+  }
+
+  async deleteByToken(token: string): Promise<number> {
+    return await this.deleteByPattern(this.getKey('*', token));
   }
 }

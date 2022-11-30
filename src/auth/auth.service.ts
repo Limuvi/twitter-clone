@@ -94,13 +94,26 @@ export class AuthService {
     return null;
   }
 
+  async getUserSessions(userId: string | number) {
+    return await this.sessionService.findByUserId(userId);
+  }
+
+  async hasSession(userId: string | number, token: string) {
+    const session = await this.sessionService.findByUserIdAndToken(
+      userId,
+      token,
+    );
+
+    return !!session;
+  }
+
   async isUserExists({ username, email }: { username: string; email: string }) {
     const user = await this.usersService.findByEmailOrUsername(email, username);
 
     return !!user;
   }
 
-  async deleteRefreshToken(
+  async deleteSession(
     userId: number | string,
     token: string,
   ): Promise<boolean> {
@@ -109,6 +122,10 @@ export class AuthService {
       token,
     );
     return !!count;
+  }
+
+  async deleteAllSessions(userId: number | string) {
+    return await this.sessionService.deleteByUserId(userId);
   }
 
   async replaceRefreshToken(

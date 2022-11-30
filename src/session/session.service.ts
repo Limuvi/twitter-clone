@@ -22,6 +22,17 @@ export class SessionService {
     return sessions;
   }
 
+  async findByUserIdAndToken(
+    userId: number | string,
+    token: string,
+  ): Promise<Session> {
+    const session = await this.sessionRepository.findByUserIdAndToken(
+      userId,
+      token,
+    );
+    return session;
+  }
+
   async create(sessionData: CreateSessionData): Promise<string> {
     const { userId } = sessionData;
     const sessions = await this.sessionRepository.findByUserId(userId);
@@ -58,7 +69,11 @@ export class SessionService {
     return await this.sessionRepository.delete(userId, token);
   }
 
-  async deleteByToken(userId: string | number): Promise<number> {
+  async deleteByToken(token: string): Promise<number> {
+    return await this.sessionRepository.deleteByToken(token);
+  }
+
+  async deleteByUserId(userId: string | number): Promise<number> {
     return await this.sessionRepository.deleteByUserId(userId);
   }
 }

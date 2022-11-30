@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Get,
+  Delete,
   HttpCode,
+  Param,
   Post,
   Res,
   UseGuards,
@@ -23,6 +26,30 @@ import { VerificationDto } from './dto/verification.dto';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @UseGuards(AuthGuard)
+  @Get('sessions')
+  async getSession(
+    @CurrentUser('id') id: number | string,
+    @RefreshToken() token: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const hasSession = await this.authService.hasSession(id, token);
+
+    if (!hasSession) {
+      await this.authService.deleteAllSessions(id);
+      response.cookie('refreshToken', token, {
+        ...this.authService.getRefreshTokenCookieOptions(),
+        maxAge: 0,
+      });
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    const sessions = await this.authService.getUserSessions(id);
+    return {
+      sessions,
+    };
+  }
 
   @HttpCode(200)
   @Post('signup')
@@ -71,7 +98,7 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const deleted = await this.authService.deleteRefreshToken(userId, token);
+    const deleted = await this.authService.deleteSession(userId, token);
 
     response.cookie('refreshToken', token, {
       ...this.authService.getRefreshTokenCookieOptions(),
@@ -92,13 +119,15 @@ export class AuthController {
     @PrivacyInfo() info: PrivacyInfoData,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const { id } = user;
     const newToken = await this.authService.replaceRefreshToken(
-      user.id,
+      id,
       info,
       token,
     );
 
     if (!newToken) {
+      await this.authService.deleteAllSessions(id);
       throw new UnauthorizedException('Invalid refresh session');
     }
 
@@ -130,5 +159,53 @@ export class AuthController {
 
     response.cookie('refreshToken', refreshToken, cookieOptions);
     return { accessToken, refreshToken };
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('sessions/:token')
+  async deleteSession(
+    @Param('token') token: string,
+    @CurrentUser('id') id: number | string,
+    @RefreshToken() userToken: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const hasSession = await this.authService.hasSession(id, userToken);
+
+    if (!hasSession) {
+      await this.authService.deleteAllSessions(id);
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    const deleted = await this.authService.deleteSession(id, token);
+
+    if (!deleted) {
+      throw new NotFoundException('Session is not found');
+    }
+
+    if (token === userToken) {
+      response.cookie('refreshToken', token, {
+        ...this.authService.getRefreshTokenCookieOptions(),
+        maxAge: 0,
+      });
+    }
+
+    return;
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('sessions')
+  async deleteSessions(
+    @CurrentUser('id') id: number | string,
+    @Res({ passthrough: true }) response: Response,
+    @RefreshToken() token: string,
+  ) {
+    await this.authService.deleteAllSessions(id);
+
+    response.cookie('refreshToken', token, {
+      ...this.authService.getRefreshTokenCookieOptions(),
+      maxAge: 0,
+    });
+
+    return;
   }
 }
