@@ -7,12 +7,16 @@ import {
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthMiddleware } from './common/middlewares';
 import { JwtModule } from '@nestjs/jwt';
 import { RedisModule } from './redis/redis.module';
 import { redisConfig } from './redis/redis.config';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -39,8 +43,32 @@ import { redisConfig } from './redis/redis.config';
       }),
       inject: [ConfigService],
     }),
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>('SMTP_HOST'),
+          auth: {
+            user: configService.get<string>('SMTP_EMAIL'),
+            pass: configService.get<string>('SMTP_PASSWORD'),
+          },
+        },
+        defaults: {
+          from: '"Twitter clone" <modules@nestjs.com>',
+        },
+        template: {
+          dir: __dirname + '\\mail\\templates',
+          adapter: new HandlebarsAdapter(),
+          options: {
+            strict: true,
+          },
+        },
+      }),
+      inject: [ConfigService],
+    }),
     UserModule,
     AuthModule,
+    MailModule,
   ],
   exports: [JwtModule],
   controllers: [],

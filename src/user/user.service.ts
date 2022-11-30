@@ -10,8 +10,8 @@ export class UserService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async create(username: string, email: string, hashedPassword: string) {
-    return await this.usersRepository.save({
+  create(username: string, email: string, hashedPassword: string) {
+    return this.usersRepository.save({
       username,
       email,
       hashedPassword,

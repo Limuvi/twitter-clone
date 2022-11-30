@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   ConflictException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common/exceptions';
 import { Response } from 'express';
@@ -17,6 +18,7 @@ import { CurrentUserData, PrivacyInfoData } from '../common/types';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
+import { VerificationDto } from './dto/verification.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -25,13 +27,17 @@ export class AuthController {
   @HttpCode(200)
   @Post('signup')
   async signUp(@Body() dto: SignUpDto) {
-    const user = await this.authService.createUser(dto);
+    const isExists = await this.authService.isUserExists(dto);
 
-    if (!user) {
+    if (isExists) {
       throw new ConflictException('This email or username is already in use');
     }
 
-    return;
+    await this.authService.registerUser(dto);
+
+    return {
+      message: 'Verification code has been sent to your email',
+    };
   }
 
   @HttpCode(200)
@@ -47,8 +53,10 @@ export class AuthController {
       throw new UnauthorizedException('Email and password do not match');
     }
 
-    const accessToken = this.authService.getAccessToken(user);
-    const refreshToken = await this.authService.getRefreshToken(user.id, info);
+    const { accessToken, refreshToken } = await this.authService.loginUser(
+      user,
+      info,
+    );
     const cookieOptions = this.authService.getRefreshTokenCookieOptions();
 
     response.cookie('refreshToken', refreshToken, cookieOptions);
@@ -100,5 +108,27 @@ export class AuthController {
     response.cookie('refreshToken', newToken, cookieOptions);
 
     return { accessToken, refreshToken: newToken };
+  }
+
+  @Post('verify')
+  async verify(
+    @Body() dto: VerificationDto,
+    @PrivacyInfo() info: PrivacyInfoData,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const user = await this.authService.verifyUser(dto);
+
+    if (!user) {
+      throw new NotFoundException('Verification code is not found!');
+    }
+
+    const { accessToken, refreshToken } = await this.authService.loginUser(
+      user,
+      info,
+    );
+    const cookieOptions = this.authService.getRefreshTokenCookieOptions();
+
+    response.cookie('refreshToken', refreshToken, cookieOptions);
+    return { accessToken, refreshToken };
   }
 }

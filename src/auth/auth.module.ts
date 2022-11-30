@@ -4,9 +4,17 @@ import { AuthController } from './auth.controller';
 import { UserModule } from '../user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { SessionModule } from '../session/session.module';
+import { MailModule } from '../mail/mail.module';
+import { VerificationModule } from '../verification/verification.module';
 
 @Module({
-  imports: [UserModule, JwtModule, SessionModule],
+  imports: [
+    UserModule,
+    JwtModule,
+    SessionModule,
+    MailModule,
+    VerificationModule,
+  ],
   controllers: [AuthController],
   providers: [AuthService],
 })
