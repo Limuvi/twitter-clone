@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AlreadyExistsError, ERROR_MESSAGES } from '../common/errors';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Profile } from './entities/profile.entity';
@@ -14,14 +15,20 @@ export class ProfileService {
 
   async create(userId: number, dto: CreateProfileDto) {
     const { username } = dto;
-    const user =
-      (await this.findByUsername(username)) ||
-      (await this.findByUserId(userId));
 
-    if (!user) {
-      return await this.profilesRepository.save({ ...dto, userId });
+    let profile = await this.findByUserId(userId);
+
+    if (profile) {
+      throw new AlreadyExistsError(ERROR_MESSAGES.PROFILE_IS_EXISTS);
     }
-    return null;
+
+    profile = await this.findByUsername(username);
+
+    if (profile) {
+      throw new AlreadyExistsError(ERROR_MESSAGES.USERNAME_IS_EXISTS);
+    }
+
+    return await this.profilesRepository.save({ ...dto, userId });
   }
 
   findAll() {
@@ -29,7 +36,7 @@ export class ProfileService {
   }
 
   findById(id: string) {
-    return this.profilesRepository.findBy({ id });
+    return this.profilesRepository.findOneBy({ id });
   }
 
   findByUsername(username: string) {
@@ -41,6 +48,13 @@ export class ProfileService {
   }
 
   async updateByUserId(userId: number, dto: UpdateProfileDto) {
+    const { username } = dto;
+    const profile = await this.findByUsername(username);
+
+    if (profile && profile.userId !== userId) {
+      throw new AlreadyExistsError(ERROR_MESSAGES.USERNAME_IS_EXISTS);
+    }
+
     return await this.profilesRepository.upsert({ ...dto, userId: userId }, [
       'userId',
     ]);

@@ -11,12 +11,18 @@ import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { SessionService } from '../session/session.service';
 import { CurrentUserData, PrivacyInfoData } from '../common/types';
-import { MailerService } from '@nestjs-modules/mailer';
 import { User } from '../user/entities/user.entity';
 import { MailService } from '../mail/mail.service';
 import { ValidatedUserDto } from '../user/dto/validated-user.dto';
 import { VerificationDto } from './dto/verification.dto';
 import { VerificationService } from '../verification/verification.service';
+import {
+  AlreadyExistsError,
+  ERROR_MESSAGES,
+  InvalidRefreshSessionError,
+  LoginError,
+  NotFoundError,
+} from '../common/errors';
 
 @Injectable()
 export class AuthService {
@@ -42,13 +48,18 @@ export class AuthService {
   }
 
   async registerUser(dto: SignUpDto): Promise<void> {
-    const { username, email, password } = dto;
+    const { email, password } = dto;
+
+    const user = await this.usersService.findByEmail(email);
+
+    if (user) {
+      throw new AlreadyExistsError(ERROR_MESSAGES.EMAIL_IS_EXISTS);
+    }
 
     const hashedPassword = hashPassword(password, this.passwordSecret);
     const code = randomBytes(20).toString('hex');
 
     await this.verificationService.create(code, {
-      username,
       email,
       hashedPassword,
     });
@@ -62,15 +73,15 @@ export class AuthService {
     const user = await this.verificationService.findByVerificationCode(code);
 
     if (user) {
-      const { username, email, hashedPassword } = user;
+      const { email, hashedPassword } = user;
       await this.verificationService.deleteVerificationCode(code);
-      return await this.usersService.create(username, email, hashedPassword);
+      return await this.usersService.create(email, hashedPassword);
     }
 
-    return null;
+    throw new NotFoundError(ERROR_MESSAGES.VERIFICATION_CODE_NOT_FOUND);
   }
 
-  async loginUser(user: ValidatedUserDto, info: PrivacyInfoData) {
+  async createSession(user: ValidatedUserDto, info: PrivacyInfoData) {
     const accessToken = this.getAccessToken(user);
     const refreshToken = await this.getRefreshToken(user.id, info);
 
@@ -91,14 +102,20 @@ export class AuthService {
       return data;
     }
 
-    return null;
+    throw new LoginError();
   }
 
-  async getUserSessions(userId: string | number) {
+  async getUserSessions(userId: string | number, token: string) {
+    const hasSession = await this.hasSession(userId, token);
+
+    if (!hasSession) {
+      await this.deleteAllSessions(userId);
+      throw new InvalidRefreshSessionError();
+    }
     return await this.sessionService.findByUserId(userId);
   }
 
-  async hasSession(userId: string | number, token: string) {
+  private async hasSession(userId: string | number, token: string) {
     const session = await this.sessionService.findByUserIdAndToken(
       userId,
       token,
@@ -107,13 +124,7 @@ export class AuthService {
     return !!session;
   }
 
-  async isUserExists({ username, email }: { username: string; email: string }) {
-    const user = await this.usersService.findByEmailOrUsername(email, username);
-
-    return !!user;
-  }
-
-  async deleteSession(
+  async deleteCurrentSession(
     userId: number | string,
     token: string,
   ): Promise<boolean> {
@@ -121,31 +132,66 @@ export class AuthService {
       userId,
       token,
     );
-    return !!count;
+
+    if (!count) {
+      throw new InvalidRefreshSessionError();
+    }
+
+    return true;
+  }
+
+  async deleteSession(
+    userId: number | string,
+    userToken: string,
+    tokenToDelete,
+  ): Promise<boolean> {
+    const hasSession = await this.hasSession(userId, userToken);
+
+    if (!hasSession) {
+      await this.deleteAllSessions(userId);
+      throw new InvalidRefreshSessionError();
+    }
+
+    const count = await this.sessionService.deleteByUserIdAndToken(
+      userId,
+      tokenToDelete,
+    );
+
+    if (!count) {
+      throw new NotFoundError(ERROR_MESSAGES.CREDS_DO_NOT_MATCH);
+    }
+
+    return true;
   }
 
   async deleteAllSessions(userId: number | string) {
     return await this.sessionService.deleteByUserId(userId);
   }
 
-  async replaceRefreshToken(
+  async replaceSession(
     userId: number | string,
     privacyInfo: PrivacyInfoData,
     token: string,
-  ): Promise<string | null> {
-    const newToken: string = v4();
+  ) {
+    const refreshToken: string = v4();
     const key = await this.sessionService.replaceSession(
       {
         userId,
-        token: newToken,
+        token: refreshToken,
         ...privacyInfo,
       },
       token,
     );
-    return key ? newToken : null;
+
+    if (!key) {
+      throw new InvalidRefreshSessionError();
+    }
+    const accessToken = this.getAccessToken({ id: userId });
+
+    return { refreshToken, accessToken };
   }
 
-  getAccessToken({ id }: CurrentUserData): string {
+  private getAccessToken({ id }: CurrentUserData): string {
     const payload = { id };
     const token = this.jwtService.sign(payload, {
       secret: this.accessTokenSecret,
@@ -154,7 +200,7 @@ export class AuthService {
     return token;
   }
 
-  async getRefreshToken(
+  private async getRefreshToken(
     userId: number,
     privacyInfo: PrivacyInfoData,
   ): Promise<string | null> {

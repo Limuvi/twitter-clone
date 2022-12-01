@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { BusinessErrorsInterceptor } from './common/interceptors/error.interceptor';
 
 async function bootstrap() {
   const { PORT, COOKIE_SECRET } = process.env;
@@ -9,6 +10,7 @@ async function bootstrap() {
 
   app.use(cookieParser(COOKIE_SECRET));
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.useGlobalInterceptors(new BusinessErrorsInterceptor());
 
   await app.listen(PORT);
   console.log(`Server is started on port ${PORT}`);

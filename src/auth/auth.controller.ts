@@ -8,14 +8,11 @@ import {
   Post,
   Res,
   UseGuards,
+  UseFilters,
 } from '@nestjs/common';
-import {
-  ConflictException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common/exceptions';
 import { Response } from 'express';
 import { CurrentUser, PrivacyInfo, RefreshToken } from '../common/decorators';
+import { UnathorizedExceptionFilter } from '../common/exception-filters/unathorized-exception.filter';
 import { AuthGuard } from '../common/guards';
 import { CurrentUserData, PrivacyInfoData } from '../common/types';
 import { AuthService } from './auth.service';
@@ -23,6 +20,7 @@ import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { VerificationDto } from './dto/verification.dto';
 
+@UseFilters(UnathorizedExceptionFilter)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -32,20 +30,8 @@ export class AuthController {
   async getSession(
     @CurrentUser('id') id: number | string,
     @RefreshToken() token: string,
-    @Res({ passthrough: true }) response: Response,
   ) {
-    const hasSession = await this.authService.hasSession(id, token);
-
-    if (!hasSession) {
-      await this.authService.deleteAllSessions(id);
-      response.cookie('refreshToken', token, {
-        ...this.authService.getRefreshTokenCookieOptions(),
-        maxAge: 0,
-      });
-      throw new UnauthorizedException('Invalid refresh session');
-    }
-
-    const sessions = await this.authService.getUserSessions(id);
+    const sessions = await this.authService.getUserSessions(id, token);
     return {
       sessions,
     };
@@ -54,14 +40,7 @@ export class AuthController {
   @HttpCode(200)
   @Post('signup')
   async signUp(@Body() dto: SignUpDto) {
-    const isExists = await this.authService.isUserExists(dto);
-
-    if (isExists) {
-      throw new ConflictException('This email or username is already in use');
-    }
-
     await this.authService.registerUser(dto);
-
     return {
       message: 'Verification code has been sent to your email',
     };
@@ -76,11 +55,7 @@ export class AuthController {
   ) {
     const user = await this.authService.validateUser(dto);
 
-    if (!user) {
-      throw new UnauthorizedException('Email and password do not match');
-    }
-
-    const { accessToken, refreshToken } = await this.authService.loginUser(
+    const { accessToken, refreshToken } = await this.authService.createSession(
       user,
       info,
     );
@@ -98,16 +73,12 @@ export class AuthController {
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const deleted = await this.authService.deleteSession(userId, token);
+    await this.authService.deleteCurrentSession(userId, token);
 
     response.cookie('refreshToken', token, {
       ...this.authService.getRefreshTokenCookieOptions(),
       maxAge: 0,
     });
-
-    if (!deleted) {
-      throw new UnauthorizedException('Invalid refresh session');
-    }
   }
 
   @UseGuards(AuthGuard)
@@ -120,23 +91,17 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const { id } = user;
-    const newToken = await this.authService.replaceRefreshToken(
+    const { accessToken, refreshToken } = await this.authService.replaceSession(
       id,
       info,
       token,
     );
 
-    if (!newToken) {
-      await this.authService.deleteAllSessions(id);
-      throw new UnauthorizedException('Invalid refresh session');
-    }
-
     const cookieOptions = this.authService.getRefreshTokenCookieOptions();
-    const accessToken = this.authService.getAccessToken(user);
 
-    response.cookie('refreshToken', newToken, cookieOptions);
+    response.cookie('refreshToken', refreshToken, cookieOptions);
 
-    return { accessToken, refreshToken: newToken };
+    return { accessToken, refreshToken };
   }
 
   @Post('verify')
@@ -147,11 +112,7 @@ export class AuthController {
   ) {
     const user = await this.authService.verifyUser(dto);
 
-    if (!user) {
-      throw new NotFoundException('Verification code is not found!');
-    }
-
-    const { accessToken, refreshToken } = await this.authService.loginUser(
+    const { accessToken, refreshToken } = await this.authService.createSession(
       user,
       info,
     );
@@ -169,24 +130,14 @@ export class AuthController {
     @RefreshToken() userToken: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const hasSession = await this.authService.hasSession(id, userToken);
-
-    if (!hasSession) {
-      await this.authService.deleteAllSessions(id);
-      throw new UnauthorizedException('Invalid refresh session');
-    }
-
-    const deleted = await this.authService.deleteSession(id, token);
-
-    if (!deleted) {
-      throw new NotFoundException('Session is not found');
-    }
-
     if (token === userToken) {
+      await this.authService.deleteCurrentSession(id, token);
       response.cookie('refreshToken', token, {
         ...this.authService.getRefreshTokenCookieOptions(),
         maxAge: 0,
       });
+    } else {
+      await this.authService.deleteSession(id, userToken, token);
     }
 
     return;
