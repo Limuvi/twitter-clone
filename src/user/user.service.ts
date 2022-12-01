@@ -10,9 +10,8 @@ export class UserService {
     private usersRepository: Repository<User>,
   ) {}
 
-  create(username: string, email: string, hashedPassword: string) {
+  create(email: string, hashedPassword: string) {
     return this.usersRepository.save({
-      username,
       email,
       hashedPassword,
     });
@@ -24,12 +23,6 @@ export class UserService {
 
   findById(id: number) {
     return this.usersRepository.findOneBy({ id });
-  }
-
-  findByEmailOrUsername(email: string, username: string) {
-    return this.usersRepository.findOne({
-      where: [{ email }, { username }],
-    });
   }
 
   findByEmail(email: string) {
