@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   RelationId,
   Tree,
@@ -11,6 +12,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Profile } from '../../profile/entities/profile.entity';
+import { Like } from './tweet-like.entity';
 
 @Tree('materialized-path')
 @Entity()
@@ -38,6 +40,14 @@ export class Tweet {
   parentAuthor: Profile;
   @RelationId('parentAuthor')
   parentAuthorId: string;
+
+  @OneToMany(() => Like, (like) => like.tweet, {
+    // cascade: true,
+    eager: true,
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  likes: Like[];
 
   @TreeChildren()
   replies: Tweet[];

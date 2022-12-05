@@ -6,6 +6,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Like } from '../../tweet/entities/tweet-like.entity';
 import { Tweet } from '../../tweet/entities/tweet.entity';
 import { User } from '../../user/entities/user.entity';
 
@@ -32,4 +33,11 @@ export class Profile {
 
   @OneToMany(() => Tweet, (tweet) => tweet.parentAuthor)
   parentTweets: Tweet[];
+
+  @OneToMany(() => Like, (like) => like.profile, {
+    cascade: true,
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  likedRecords: Like[];
 }

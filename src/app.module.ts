@@ -19,6 +19,10 @@ import { redisConfig } from './redis/redis.config';
 import { MailModule } from './mail/mail.module';
 import { TweetModule } from './tweet/tweet.module';
 import { ProfileModule } from './profile/profile.module';
+import { Tweet } from './tweet/entities/tweet.entity';
+import { Profile } from './profile/entities/profile.entity';
+import { User } from './user/entities/user.entity';
+import { Like } from './tweet/entities/tweet-like.entity';
 
 @Module({
   imports: [
@@ -33,7 +37,7 @@ import { ProfileModule } from './profile/profile.module';
       username: process.env.POSTGRES_USERNAME,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DATABASE,
-      entities: [],
+      entities: [Like, Tweet, Profile, User],
       autoLoadEntities: true,
       synchronize: true,
       logging: ['query', 'error'],

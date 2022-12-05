@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, TreeRepository } from 'typeorm';
+import { DeleteResult, Repository, TreeRepository } from 'typeorm';
 import {
   AccessDeniedError,
   ERROR_MESSAGES,
@@ -12,12 +12,15 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateTweetDto } from './dto/update-tweet.dto';
 import { Tweet } from './entities/tweet.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { Like } from './entities/tweet-like.entity';
 
 @Injectable()
 export class TweetService {
   constructor(
     @InjectRepository(Tweet)
     private tweetsRepository: TreeRepository<Tweet>,
+    @InjectRepository(Like)
+    private likesRepository: Repository<Like>,
     private profilesService: ProfileService,
   ) {}
 
@@ -74,6 +77,33 @@ export class TweetService {
       isComment,
       author: { id: profile.id },
     });
+  }
+
+  async createLike(id: string, userId: number): Promise<Like> {
+    const tweet = await this.findById(id);
+    const profile = await this.profilesService.findByUserId(userId);
+
+    if (!tweet) {
+      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
+    } else if (!profile) {
+      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    }
+    const { id: tweetId } = tweet;
+    const { id: profileId } = profile;
+    const like = await this.likesRepository
+      .createQueryBuilder('like')
+      .where('like.profile.id = :profileId', { profileId })
+      .andWhere('like.tweetId = :tweetId', { tweetId })
+      .getOne();
+
+    if (like) {
+      return like;
+    } else {
+      return await this.likesRepository.save({
+        tweet: { id: tweetId },
+        profile: { id: profileId },
+      });
+    }
   }
 
   async findTweets(): Promise<Tweet[]> {
@@ -183,6 +213,30 @@ export class TweetService {
     }
 
     return await this.tweetsRepository.delete({ id });
+  }
+
+  async deleteLike(id: string, userId: number): Promise<Like> {
+    const tweet = await this.findById(id);
+    const profile = await this.profilesService.findByUserId(userId);
+
+    if (!tweet) {
+      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
+    } else if (!profile) {
+      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    }
+    const { id: tweetId } = tweet;
+    const { id: profileId } = profile;
+    const like = await this.likesRepository
+      .createQueryBuilder('like')
+      .where('like.profile.id = :profileId', { profileId })
+      .andWhere('like.tweetId = :tweetId', { tweetId })
+      .getOne();
+
+    if (like) {
+      await this.likesRepository.delete(like.id);
+    }
+
+    return null;
   }
 
   protected mapToTree(dataset: Tweet[]): any[] {

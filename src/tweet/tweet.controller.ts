@@ -52,6 +52,15 @@ export class TweetController {
     return await this.tweetService.createRetweet(parentId, userId, dto);
   }
 
+  @UseGuards(AuthGuard)
+  @Post(':id/likes')
+  async createLike(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser('id') userId: number,
+  ) {
+    return await this.tweetService.createLike(id, userId);
+  }
+
   @Get()
   async findAll() {
     return await this.tweetService.findTweets();
@@ -103,6 +112,17 @@ export class TweetController {
   @Delete([':id', 'comments/:id'])
   async delete(@Param('id') id: string, @CurrentUser('id') userId: number) {
     await this.tweetService.delete(id, userId);
+    return;
+  }
+
+  @UseGuards(AuthGuard)
+  @HttpCode(204)
+  @Delete(':id/likes')
+  async deleteLike(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser('id') userId: number,
+  ) {
+    await this.tweetService.deleteLike(id, userId);
     return;
   }
 }
