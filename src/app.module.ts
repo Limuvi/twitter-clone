@@ -17,6 +17,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { RedisModule } from './redis/redis.module';
 import { redisConfig } from './redis/redis.config';
 import { MailModule } from './mail/mail.module';
+import { TweetModule } from './tweet/tweet.module';
 import { ProfileModule } from './profile/profile.module';
 
 @Module({
@@ -35,6 +36,7 @@ import { ProfileModule } from './profile/profile.module';
       entities: [],
       autoLoadEntities: true,
       synchronize: true,
+      logging: ['query', 'error'],
     }),
     RedisModule.registerAsync(redisConfig),
     JwtModule.registerAsync({
@@ -70,6 +72,7 @@ import { ProfileModule } from './profile/profile.module';
     UserModule,
     AuthModule,
     MailModule,
+    TweetModule,
     ProfileModule,
   ],
   exports: [JwtModule],

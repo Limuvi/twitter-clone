@@ -2,9 +2,11 @@ import {
   Column,
   Entity,
   JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Tweet } from '../../tweet/entities/tweet.entity';
 import { User } from '../../user/entities/user.entity';
 
 @Entity()
@@ -21,8 +23,13 @@ export class Profile {
   @Column({ unique: true })
   userId: number;
 
-  @OneToOne(() => User, (user) => user.profile)
+  @OneToOne(() => User, (user) => user.profile, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 
+  @OneToMany(() => Tweet, (tweet) => tweet.author)
+  tweets: Tweet[];
+
+  @OneToMany(() => Tweet, (tweet) => tweet.parentAuthor)
+  parentTweets: Tweet[];
 }

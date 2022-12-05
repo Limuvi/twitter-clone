@@ -9,7 +9,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.use(cookieParser(COOKIE_SECRET));
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
   app.useGlobalInterceptors(new BusinessErrorsInterceptor());
 
   await app.listen(PORT);
