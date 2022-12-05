@@ -26,6 +26,9 @@ export class Tweet {
   @Column({ default: '' })
   text: string;
 
+  @Column('varchar', { array: true, nullable: true })
+  imageNames: string[];
+
   @ManyToOne(() => Profile, (profile) => profile.tweets, {
     onDelete: 'SET NULL',
     nullable: false,

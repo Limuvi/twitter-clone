@@ -9,6 +9,10 @@ import {
   ParseUUIDPipe,
   Put,
   HttpCode,
+  UseInterceptors,
+  UploadedFile,
+  UploadedFiles,
+  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { TweetService } from './tweet.service';
 import { CreateTweetDto } from './dto/create-tweet.dto';
@@ -18,38 +22,45 @@ import { AuthGuard } from '../common/guards';
 import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { ImagesInterceptor } from '../common/interceptors/image.interceptor';
 
 @Controller('tweets')
 export class TweetController {
   constructor(private readonly tweetService: TweetService) {}
 
   @UseGuards(AuthGuard)
+  @UseInterceptors(ImagesInterceptor())
   @Post()
   async createTweet(
     @Body() dto: CreateTweetDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
     @CurrentUser('id') userId: number,
   ) {
-    return await this.tweetService.createTweet(userId, dto);
+    return await this.tweetService.createTweet(userId, dto, images);
   }
 
   @UseGuards(AuthGuard)
+  @UseInterceptors(ImagesInterceptor())
   @Post(':id/comments')
   async createComment(
     @Body() dto: CreateCommentDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
     @CurrentUser('id') userId: number,
     @Param('id', new ParseUUIDPipe({ version: '4' })) parentId: string,
   ) {
-    return await this.tweetService.createComment(parentId, userId, dto);
+    return await this.tweetService.createComment(parentId, userId, dto, images);
   }
 
   @UseGuards(AuthGuard)
+  @UseInterceptors(ImagesInterceptor())
   @Post(':id/retweets')
   async retweet(
     @Body() dto: CreateTweetDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
     @CurrentUser('id') userId: number,
     @Param('id', new ParseUUIDPipe({ version: '4' })) parentId: string,
   ) {
-    return await this.tweetService.createRetweet(parentId, userId, dto);
+    return await this.tweetService.createRetweet(parentId, userId, dto, images);
   }
 
   @UseGuards(AuthGuard)
@@ -89,22 +100,26 @@ export class TweetController {
 
   @UseGuards(AuthGuard)
   @Put(':id')
+  @UseInterceptors(ImagesInterceptor())
   async updateTweet(
     @Param('id') id: string,
     @CurrentUser('id') userId: number,
     @Body() dto: UpdateTweetDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
-    return await this.tweetService.updateTweet(id, userId, dto);
+    return await this.tweetService.updateTweet(id, userId, dto, images);
   }
 
   @UseGuards(AuthGuard)
   @Put('comments/:id')
+  @UseInterceptors(ImagesInterceptor())
   async updateComment(
     @Param('id') id: string,
     @CurrentUser('id') userId: number,
     @Body() dto: UpdateCommentDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
-    return await this.tweetService.updateComment(id, userId, dto);
+    return await this.tweetService.updateComment(id, userId, dto, images);
   }
 
   @UseGuards(AuthGuard)

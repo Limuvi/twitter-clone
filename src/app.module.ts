@@ -23,6 +23,9 @@ import { Tweet } from './tweet/entities/tweet.entity';
 import { Profile } from './profile/entities/profile.entity';
 import { User } from './user/entities/user.entity';
 import { Like } from './tweet/entities/tweet-like.entity';
+import { FileModule } from './file/file.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -40,7 +43,8 @@ import { Like } from './tweet/entities/tweet-like.entity';
       entities: [Like, Tweet, Profile, User],
       autoLoadEntities: true,
       synchronize: true,
-      logging: ['query', 'error'],
+      logging: ['error'],
+      // logging: ['query', 'error'],
     }),
     RedisModule.registerAsync(redisConfig),
     JwtModule.registerAsync({
@@ -73,11 +77,16 @@ import { Like } from './tweet/entities/tweet-like.entity';
       }),
       inject: [ConfigService],
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', process.env.STATIC_FILES_FOLDER_NAME),
+      serveRoot: '/files',
+    }),
     UserModule,
     AuthModule,
     MailModule,
     TweetModule,
     ProfileModule,
+    FileModule,
   ],
   exports: [JwtModule],
   controllers: [],

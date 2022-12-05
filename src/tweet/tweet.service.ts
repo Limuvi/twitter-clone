@@ -13,6 +13,7 @@ import { UpdateTweetDto } from './dto/update-tweet.dto';
 import { Tweet } from './entities/tweet.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { Like } from './entities/tweet-like.entity';
+import { FileService } from '../file/file.service';
 
 @Injectable()
 export class TweetService {
@@ -22,26 +23,33 @@ export class TweetService {
     @InjectRepository(Like)
     private likesRepository: Repository<Like>,
     private profilesService: ProfileService,
+    private filesService: FileService,
   ) {}
 
   createComment(
     parentId: string,
     userId: number,
     dto: CreateCommentDto,
+    images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return this.create(parentId, true, userId, dto);
+    return this.create(parentId, true, userId, dto, images);
   }
 
   createRetweet(
     parentId: string,
     userId: number,
     dto: CreateTweetDto,
+    images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return this.create(parentId, false, userId, dto);
+    return this.create(parentId, false, userId, dto, images);
   }
 
-  createTweet(userId, dto: CreateTweetDto): Promise<Tweet> {
-    return this.create(null, false, userId, dto);
+  createTweet(
+    userId: number,
+    dto: CreateTweetDto,
+    images?: Array<Express.Multer.File>,
+  ): Promise<Tweet> {
+    return this.create(null, false, userId, dto, images);
   }
 
   async create(
@@ -49,6 +57,7 @@ export class TweetService {
     isComment: boolean,
     userId: number,
     dto: CreateCommentDto | CreateTweetDto,
+    images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
     const profile = await this.profilesService.findByUserId(userId);
 
@@ -63,19 +72,29 @@ export class TweetService {
         throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
       }
 
+      const imageNames = images.length
+        ? await this.filesService.create(images)
+        : [];
+
       return await this.tweetsRepository.save({
         ...dto,
         isComment,
         author: profile,
         parentRecord,
         parentAuthor: parentRecord.author,
+        imageNames,
       });
     }
+
+    const imageNames = images.length
+      ? await this.filesService.create(images)
+      : [];
 
     return await this.tweetsRepository.save({
       ...dto,
       isComment,
       author: { id: profile.id },
+      imageNames,
     });
   }
 
@@ -159,12 +178,22 @@ export class TweetService {
     return tweetsTree;
   }
 
-  async updateTweet(id: string, userId: number, dto: UpdateTweetDto) {
-    return await this.update(id, userId, false, dto);
+  async updateTweet(
+    id: string,
+    userId: number,
+    dto: UpdateTweetDto,
+    images: Array<Express.Multer.File>,
+  ) {
+    return await this.update(id, userId, false, dto, images);
   }
 
-  async updateComment(id: string, userId: number, dto: UpdateTweetDto) {
-    return await this.update(id, userId, true, dto);
+  async updateComment(
+    id: string,
+    userId: number,
+    dto: UpdateTweetDto,
+    images: Array<Express.Multer.File>,
+  ) {
+    return await this.update(id, userId, true, dto, images);
   }
 
   async update(
@@ -172,6 +201,7 @@ export class TweetService {
     userId: number,
     isComment: boolean,
     dto: UpdateTweetDto | UpdateCommentDto,
+    images: Array<Express.Multer.File>,
   ): Promise<Tweet> {
     const tweet = await this.findById(id);
     const profile = await this.profilesService.findByUserId(userId);
@@ -188,9 +218,14 @@ export class TweetService {
       // по идее в будущем у createTweetDto будет поле private ("только для подписчиков"), а у CreateCommentDto - нет
     }
 
+    const imageNames = images
+      ? await this.filesService.replace(images, tweet.imageNames)
+      : tweet.imageNames;
+
     const updated = await this.tweetsRepository.save({
       ...tweet,
       ...dto,
+      imageNames,
     });
 
     delete updated.parentRecord;
@@ -210,6 +245,11 @@ export class TweetService {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     } else if (tweet.authorId !== profile.id) {
       throw new AccessDeniedError();
+    }
+    const { imageNames } = tweet;
+
+    if (imageNames.length) {
+      await this.filesService.delete(imageNames);
     }
 
     return await this.tweetsRepository.delete({ id });
