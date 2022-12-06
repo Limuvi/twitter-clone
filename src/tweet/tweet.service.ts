@@ -206,16 +206,12 @@ export class TweetService {
     const tweet = await this.findById(id);
     const profile = await this.profilesService.findByUserId(userId);
 
-    if (!tweet) {
+    if (!tweet || tweet.isComment !== isComment) {
       throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
     } else if (!profile) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     } else if (tweet.authorId !== profile.id) {
       throw new AccessDeniedError();
-    } else if (tweet.isComment !== isComment) {
-      //bad request???
-      //типа когда мы пытаемся отредактировать коммент с помощью роута (и dto) для твита, или наоборот
-      // по идее в будущем у createTweetDto будет поле private ("только для подписчиков"), а у CreateCommentDto - нет
     }
 
     const imageNames = images
