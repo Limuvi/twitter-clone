@@ -20,4 +20,8 @@ export class VerificationService {
   deleteVerificationCode(email: string, code: string): Promise<number> {
     return this.repository.deleteByKey({ code, email });
   }
+
+  deleteByEmail(email: string) {
+    return this.repository.deleteByPattern({ code: null, email });
+  }
 }

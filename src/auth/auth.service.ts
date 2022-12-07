@@ -61,6 +61,7 @@ export class AuthService {
     const hashedPassword = hashPassword(password, this.passwordSecret);
     const code = randomBytes(20).toString('hex');
 
+    await this.verificationService.deleteByEmail(email);
     await this.verificationService.create(code, {
       email,
       hashedPassword,
