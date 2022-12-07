@@ -15,7 +15,7 @@ import { CurrentUser, PrivacyInfo, RefreshToken } from '../common/decorators';
 import { UnathorizedExceptionFilter } from '../common/exception-filters/unathorized-exception.filter';
 import { AuthGuard } from '../common/guards';
 import { CurrentUserData, PrivacyInfoData } from '../common/types';
-import { Session } from '../session/session.type';
+import { Session } from '../session/types/session.type';
 import { AuthService } from './auth.service';
 import { AuthTokensDto } from './dto/auth-tokens.dto';
 import { SignInDto } from './dto/sign-in.dto';
@@ -30,7 +30,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @Get('sessions')
   async getSession(
-    @CurrentUser('id') id: number | string,
+    @CurrentUser('id') id: number,
     @RefreshToken() token: string,
   ): Promise<Session[]> {
     const sessions = await this.authService.getUserSessions(id, token);
@@ -70,7 +70,7 @@ export class AuthController {
   @Post('signout')
   async signOut(
     @RefreshToken() token: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser('id') userId: number,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     await this.authService.deleteCurrentSession(userId, token);
@@ -126,7 +126,7 @@ export class AuthController {
   @Delete('sessions/:token')
   async deleteSession(
     @Param('token') token: string,
-    @CurrentUser('id') id: number | string,
+    @CurrentUser('id') id: number,
     @RefreshToken() userToken: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
@@ -146,7 +146,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @Delete('sessions')
   async deleteSessions(
-    @CurrentUser('id') id: number | string,
+    @CurrentUser('id') id: number,
     @Res({ passthrough: true }) response: Response,
     @RefreshToken() token: string,
   ): Promise<void> {

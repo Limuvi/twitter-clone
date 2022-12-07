@@ -1,5 +1,5 @@
 export type CurrentUserData = {
-  id: number | string;
+  id: number;
 };
 
 export type PrivacyInfoData = {

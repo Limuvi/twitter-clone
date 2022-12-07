@@ -41,7 +41,7 @@ export class RedisModule {
 
     return {
       module: RedisModule,
-      imports,
+      imports: [],
       providers: [redisProvider],
       exports: [redisProvider],
     };

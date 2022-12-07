@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { RedisModule } from '../redis/redis.module';
-import { VerificationRepository } from './verification.repository';
+import { StoreModule } from '../store/store.module';
 import { VerificationService } from './verification.service';
 
 @Module({
-  imports: [RedisModule],
+  imports: [StoreModule],
   exports: [VerificationService],
-  providers: [VerificationService, VerificationRepository],
+  providers: [VerificationService],
 })
 export class VerificationModule {}
