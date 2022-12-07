@@ -23,6 +23,8 @@ import {
   LoginError,
   NotFoundError,
 } from '../common/errors';
+import { Session } from '../session/session.type';
+import { AuthTokensDto } from './dto/auth-tokens.dto';
 
 @Injectable()
 export class AuthService {
@@ -81,7 +83,10 @@ export class AuthService {
     throw new NotFoundError(ERROR_MESSAGES.VERIFICATION_CODE_NOT_FOUND);
   }
 
-  async createSession(user: ValidatedUserDto, info: PrivacyInfoData) {
+  async createSession(
+    user: ValidatedUserDto,
+    info: PrivacyInfoData,
+  ): Promise<AuthTokensDto> {
     const accessToken = this.getAccessToken(user);
     const refreshToken = await this.getRefreshToken(user.id, info);
 
@@ -105,7 +110,10 @@ export class AuthService {
     throw new LoginError();
   }
 
-  async getUserSessions(userId: string | number, token: string) {
+  async getUserSessions(
+    userId: string | number,
+    token: string,
+  ): Promise<Session[]> {
     const hasSession = await this.hasSession(userId, token);
 
     if (!hasSession) {
@@ -115,7 +123,10 @@ export class AuthService {
     return await this.sessionService.findByUserId(userId);
   }
 
-  private async hasSession(userId: string | number, token: string) {
+  private async hasSession(
+    userId: string | number,
+    token: string,
+  ): Promise<boolean> {
     const session = await this.sessionService.findByUserIdAndToken(
       userId,
       token,
@@ -127,7 +138,7 @@ export class AuthService {
   async deleteCurrentSession(
     userId: number | string,
     token: string,
-  ): Promise<boolean> {
+  ): Promise<void> {
     const count = await this.sessionService.deleteByUserIdAndToken(
       userId,
       token,
@@ -136,15 +147,13 @@ export class AuthService {
     if (!count) {
       throw new InvalidRefreshSessionError();
     }
-
-    return true;
   }
 
   async deleteSession(
     userId: number | string,
     userToken: string,
     tokenToDelete,
-  ): Promise<boolean> {
+  ): Promise<void> {
     const hasSession = await this.hasSession(userId, userToken);
 
     if (!hasSession) {
@@ -160,19 +169,17 @@ export class AuthService {
     if (!count) {
       throw new NotFoundError(ERROR_MESSAGES.CREDS_DO_NOT_MATCH);
     }
-
-    return true;
   }
 
-  async deleteAllSessions(userId: number | string) {
-    return await this.sessionService.deleteByUserId(userId);
+  async deleteAllSessions(userId: number | string): Promise<void> {
+    await this.sessionService.deleteByUserId(userId);
   }
 
   async replaceSession(
     userId: number | string,
     privacyInfo: PrivacyInfoData,
     token: string,
-  ) {
+  ): Promise<AuthTokensDto> {
     const refreshToken: string = v4();
     const key = await this.sessionService.replaceSession(
       {
@@ -203,7 +210,7 @@ export class AuthService {
   private async getRefreshToken(
     userId: number,
     privacyInfo: PrivacyInfoData,
-  ): Promise<string | null> {
+  ): Promise<string> {
     const token: string = v4();
     const key = await this.sessionService.create({
       userId,

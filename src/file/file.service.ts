@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as path from 'path';
 import * as uuid from 'uuid';
 import { ConfigService } from '@nestjs/config';
-import { mkdir, rm, stat, unlink, writeFile } from 'fs/promises';
+import { mkdir, rm, stat, writeFile } from 'fs/promises';
 
 @Injectable()
 export class FileService {
@@ -36,7 +36,10 @@ export class FileService {
     }
   }
 
-  async replace(newFiles: Array<Express.Multer.File>, prevFileNames: string[]) {
+  async replace(
+    newFiles: Array<Express.Multer.File>,
+    prevFileNames: string[],
+  ): Promise<string[]> {
     const existed = [];
 
     if (prevFileNames.length) {

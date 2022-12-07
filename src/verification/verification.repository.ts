@@ -29,14 +29,14 @@ export class VerificationRepository {
     return key;
   }
 
-  async findByCode(code: number | string): Promise<CreateUserDto> {
+  async findByCode(code: string): Promise<CreateUserDto> {
     const key = this.getKey(code);
     const value = await this.store.get(key);
     const user: CreateUserDto = this.serialize(value);
     return user;
   }
 
-  async delete(emailCode: string | number): Promise<number> {
+  async delete(emailCode: string): Promise<number> {
     const key = this.getKey(emailCode);
     const count = await this.store.del(key);
     return count;

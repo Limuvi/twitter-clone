@@ -10,9 +10,7 @@ import {
   Put,
   HttpCode,
   UseInterceptors,
-  UploadedFile,
   UploadedFiles,
-  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { TweetService } from './tweet.service';
 import { CreateTweetDto } from './dto/create-tweet.dto';
@@ -23,6 +21,8 @@ import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { ImagesInterceptor } from '../common/interceptors/image.interceptor';
+import { Tweet } from './entities/tweet.entity';
+import { Like } from './entities/tweet-like.entity';
 
 @Controller('tweets')
 export class TweetController {
@@ -35,7 +35,7 @@ export class TweetController {
     @Body() dto: CreateTweetDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
     @CurrentUser('id') userId: number,
-  ) {
+  ): Promise<Tweet> {
     return await this.tweetService.createTweet(userId, dto, images);
   }
 
@@ -47,7 +47,7 @@ export class TweetController {
     @UploadedFiles() images: Array<Express.Multer.File>,
     @CurrentUser('id') userId: number,
     @Param('id', new ParseUUIDPipe({ version: '4' })) parentId: string,
-  ) {
+  ): Promise<Tweet> {
     return await this.tweetService.createComment(parentId, userId, dto, images);
   }
 
@@ -59,7 +59,7 @@ export class TweetController {
     @UploadedFiles() images: Array<Express.Multer.File>,
     @CurrentUser('id') userId: number,
     @Param('id', new ParseUUIDPipe({ version: '4' })) parentId: string,
-  ) {
+  ): Promise<Tweet> {
     return await this.tweetService.createRetweet(parentId, userId, dto, images);
   }
 
@@ -68,17 +68,17 @@ export class TweetController {
   async createLike(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser('id') userId: number,
-  ) {
+  ): Promise<Tweet> {
     return await this.tweetService.createLike(id, userId);
   }
 
   @Get()
-  async findAll() {
+  async findAll(): Promise<Tweet[]> {
     return await this.tweetService.findTweets();
   }
 
   @Get([':id', 'comments/:id'])
-  async findTweetById(@Param('id') id: string) {
+  async findTweetById(@Param('id') id: string): Promise<Tweet> {
     const tweet = await this.tweetService.findById(id);
 
     if (!tweet) {
@@ -89,12 +89,12 @@ export class TweetController {
   }
 
   @Get(':id/comments')
-  async findCommentsTreeById(@Param('id') id: string) {
+  async findCommentsTreeById(@Param('id') id: string): Promise<any> {
     return await this.tweetService.findDescendantsTreeById(id, true);
   }
 
   @Get(':id/retweets')
-  async findRetweetsTreeById(@Param('id') id: string) {
+  async findRetweetsTreeById(@Param('id') id: string): Promise<any> {
     return await this.tweetService.findDescendantsTreeById(id, false);
   }
 
@@ -106,7 +106,7 @@ export class TweetController {
     @CurrentUser('id') userId: number,
     @Body() dto: UpdateTweetDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
-  ) {
+  ): Promise<Tweet> {
     return await this.tweetService.updateTweet(id, userId, dto, images);
   }
 
@@ -118,26 +118,28 @@ export class TweetController {
     @CurrentUser('id') userId: number,
     @Body() dto: UpdateCommentDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
-  ) {
+  ): Promise<Tweet> {
     return await this.tweetService.updateComment(id, userId, dto, images);
   }
 
   @UseGuards(AuthGuard)
   @HttpCode(204)
   @Delete([':id', 'comments/:id'])
-  async delete(@Param('id') id: string, @CurrentUser('id') userId: number) {
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: number,
+  ): Promise<void> {
     await this.tweetService.delete(id, userId);
     return;
   }
 
   @UseGuards(AuthGuard)
-  @HttpCode(204)
+  // @HttpCode(204)
   @Delete(':id/likes')
   async deleteLike(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser('id') userId: number,
-  ) {
-    await this.tweetService.deleteLike(id, userId);
-    return;
+  ): Promise<Tweet> {
+    return await this.tweetService.deleteLike(id, userId);
   }
 }

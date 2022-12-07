@@ -1,9 +1,10 @@
-import { Column } from 'typeorm';
+import { IsString, Length } from 'class-validator';
 
 export class CreateProfileDto {
-  @Column({ unique: true })
+  @IsString()
+  @Length(3, 30)
   username: string;
 
-  @Column()
+  @IsString()
   description: string;
 }

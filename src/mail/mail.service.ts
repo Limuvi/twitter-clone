@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
+import { SentMessageInfo } from 'nodemailer';
 import { PrivacyInfoData } from '../common/types';
 
 @Injectable()
 export class MailService {
   constructor(private readonly mailerService: MailerService) {}
 
-  async sendVerificationMail(email: string, code: string) {
+  async sendVerificationMail(
+    email: string,
+    code: string,
+  ): Promise<SentMessageInfo> {
     const result = await this.mailerService.sendMail({
       to: email,
       subject: 'Please verify your email address',
@@ -18,17 +22,10 @@ export class MailService {
     return result;
   }
 
-  async sendMailText(email: string, code: string) {
-    const mailOptions = {
-      to: 'limuviti@gmail.com',
-      subject: 'Subject',
-      text: 'Email content',
-    };
-    const result = await this.mailerService.sendMail(mailOptions);
-    return result;
-  }
-
-  async sendLoginNotificationMail(email: string, privacyInfo: PrivacyInfoData) {
+  async sendLoginNotificationMail(
+    email: string,
+    privacyInfo: PrivacyInfoData,
+  ): Promise<SentMessageInfo> {
     const { ip, userAgent } = privacyInfo;
     const result = await this.mailerService.sendMail({
       to: email,

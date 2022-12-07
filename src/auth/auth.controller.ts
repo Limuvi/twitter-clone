@@ -15,7 +15,9 @@ import { CurrentUser, PrivacyInfo, RefreshToken } from '../common/decorators';
 import { UnathorizedExceptionFilter } from '../common/exception-filters/unathorized-exception.filter';
 import { AuthGuard } from '../common/guards';
 import { CurrentUserData, PrivacyInfoData } from '../common/types';
+import { Session } from '../session/session.type';
 import { AuthService } from './auth.service';
+import { AuthTokensDto } from './dto/auth-tokens.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { VerificationDto } from './dto/verification.dto';
@@ -30,16 +32,14 @@ export class AuthController {
   async getSession(
     @CurrentUser('id') id: number | string,
     @RefreshToken() token: string,
-  ) {
+  ): Promise<Session[]> {
     const sessions = await this.authService.getUserSessions(id, token);
-    return {
-      sessions,
-    };
+    return sessions;
   }
 
   @HttpCode(200)
   @Post('signup')
-  async signUp(@Body() dto: SignUpDto) {
+  async signUp(@Body() dto: SignUpDto): Promise<{ message: string }> {
     await this.authService.registerUser(dto);
     return {
       message: 'Verification code has been sent to your email',
@@ -52,7 +52,7 @@ export class AuthController {
     @Body() dto: SignInDto,
     @PrivacyInfo() info: PrivacyInfoData,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<AuthTokensDto> {
     const user = await this.authService.validateUser(dto);
 
     const { accessToken, refreshToken } = await this.authService.createSession(
@@ -72,7 +72,7 @@ export class AuthController {
     @RefreshToken() token: string,
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<void> {
     await this.authService.deleteCurrentSession(userId, token);
 
     response.cookie('refreshToken', token, {
@@ -89,7 +89,7 @@ export class AuthController {
     @CurrentUser() user: CurrentUserData,
     @PrivacyInfo() info: PrivacyInfoData,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<AuthTokensDto> {
     const { id } = user;
     const { accessToken, refreshToken } = await this.authService.replaceSession(
       id,
@@ -109,7 +109,7 @@ export class AuthController {
     @Body() dto: VerificationDto,
     @PrivacyInfo() info: PrivacyInfoData,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<AuthTokensDto> {
     const user = await this.authService.verifyUser(dto);
 
     const { accessToken, refreshToken } = await this.authService.createSession(
@@ -129,7 +129,7 @@ export class AuthController {
     @CurrentUser('id') id: number | string,
     @RefreshToken() userToken: string,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<void> {
     if (token === userToken) {
       await this.authService.deleteCurrentSession(id, token);
       response.cookie('refreshToken', token, {
@@ -149,7 +149,7 @@ export class AuthController {
     @CurrentUser('id') id: number | string,
     @Res({ passthrough: true }) response: Response,
     @RefreshToken() token: string,
-  ) {
+  ): Promise<void> {
     await this.authService.deleteAllSessions(id);
 
     response.cookie('refreshToken', token, {

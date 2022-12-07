@@ -10,22 +10,22 @@ export class UserService {
     private usersRepository: Repository<User>,
   ) {}
 
-  create(email: string, hashedPassword: string) {
+  create(email: string, hashedPassword: string): Promise<User> {
     return this.usersRepository.save({
       email,
       hashedPassword,
     });
   }
 
-  findAll() {
+  findAll(): Promise<User[]> {
     return this.usersRepository.find();
   }
 
-  findById(id: number) {
+  findById(id: number): Promise<User> {
     return this.usersRepository.findOneBy({ id });
   }
 
-  findByEmail(email: string) {
+  findByEmail(email: string): Promise<User> {
     return this.usersRepository.findOne({
       where: { email },
     });

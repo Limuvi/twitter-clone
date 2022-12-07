@@ -13,41 +13,41 @@ export class ProfileService {
     private profilesRepository: Repository<Profile>,
   ) {}
 
-  async create(userId: number, dto: CreateProfileDto) {
+  async create(userId: number, dto: CreateProfileDto): Promise<Profile> {
     const { username } = dto;
 
-    let profile = await this.findByUserId(userId);
+    const userProfile = await this.findByUserId(userId);
+    const usernameProfile = await this.findByUsername(username);
 
-    if (profile) {
+    if (userProfile) {
       throw new AlreadyExistsError(ERROR_MESSAGES.PROFILE_IS_EXISTS);
-    }
-
-    profile = await this.findByUsername(username);
-
-    if (profile) {
+    } else if (usernameProfile) {
       throw new AlreadyExistsError(ERROR_MESSAGES.USERNAME_IS_EXISTS);
     }
 
     return await this.profilesRepository.save({ ...dto, userId });
   }
 
-  findAll() {
+  findAll(): Promise<Profile[]> {
     return this.profilesRepository.find();
   }
 
-  findById(id: string) {
+  findById(id: string): Promise<Profile> {
     return this.profilesRepository.findOneBy({ id });
   }
 
-  findByUsername(username: string) {
+  findByUsername(username: string): Promise<Profile> {
     return this.profilesRepository.findOne({ where: { username } });
   }
 
-  findByUserId(userId: number) {
+  findByUserId(userId: number): Promise<Profile> {
     return this.profilesRepository.findOneBy({ userId });
   }
 
-  async updateByUserId(userId: number, dto: UpdateProfileDto) {
+  async updateByUserId(
+    userId: number,
+    dto: UpdateProfileDto,
+  ): Promise<Profile> {
     const { username } = dto;
     const profile = await this.findByUsername(username);
 
@@ -55,8 +55,15 @@ export class ProfileService {
       throw new AlreadyExistsError(ERROR_MESSAGES.USERNAME_IS_EXISTS);
     }
 
-    return await this.profilesRepository.upsert({ ...dto, userId: userId }, [
-      'userId',
-    ]);
+    const upserted = await this.profilesRepository
+      .createQueryBuilder()
+      .insert()
+      .into(Profile)
+      .values({ ...dto, userId: userId })
+      .orUpdate(Object.keys(dto), ['userId'])
+      .returning('*')
+      .execute();
+
+    return upserted.raw;
   }
 }

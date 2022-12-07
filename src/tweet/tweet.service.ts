@@ -98,7 +98,7 @@ export class TweetService {
     });
   }
 
-  async createLike(id: string, userId: number): Promise<Like> {
+  async createLike(id: string, userId: number): Promise<Tweet> {
     const tweet = await this.findById(id);
     const profile = await this.profilesService.findByUserId(userId);
 
@@ -115,14 +115,14 @@ export class TweetService {
       .andWhere('like.tweetId = :tweetId', { tweetId })
       .getOne();
 
-    if (like) {
-      return like;
-    } else {
-      return await this.likesRepository.save({
+    if (!like) {
+      await this.likesRepository.save({
         tweet: { id: tweetId },
         profile: { id: profileId },
       });
     }
+
+    return await this.tweetsRepository.findOneBy({ id: tweetId });
   }
 
   async findTweets(): Promise<Tweet[]> {
@@ -251,7 +251,7 @@ export class TweetService {
     return await this.tweetsRepository.delete({ id });
   }
 
-  async deleteLike(id: string, userId: number): Promise<Like> {
+  async deleteLike(id: string, userId: number): Promise<Tweet> {
     const tweet = await this.findById(id);
     const profile = await this.profilesService.findByUserId(userId);
 
@@ -272,7 +272,7 @@ export class TweetService {
       await this.likesRepository.delete(like.id);
     }
 
-    return null;
+    return await this.tweetsRepository.findOneBy({ id: tweetId });
   }
 
   protected mapToTree(dataset: Tweet[]): any[] {

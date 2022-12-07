@@ -46,7 +46,10 @@ export class SessionService {
     return key;
   }
 
-  async replaceSession(sessionData: CreateSessionData, prevToken: string) {
+  async replaceSession(
+    sessionData: CreateSessionData,
+    prevToken: string,
+  ): Promise<string> {
     const { userId, ip, userAgent } = sessionData;
     const prev = await this.sessionRepository.findByUserIdAndToken(
       userId,

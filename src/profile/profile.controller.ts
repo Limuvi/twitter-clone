@@ -15,6 +15,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthGuard } from '../common/guards';
 import { CurrentUser } from '../common/decorators';
 import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
+import { Profile } from './entities/profile.entity';
 
 @Controller('profiles')
 export class ProfileController {
@@ -25,19 +26,21 @@ export class ProfileController {
   async create(
     @Body() dto: CreateProfileDto,
     @CurrentUser('id') userId: number,
-  ) {
+  ): Promise<void> {
     await this.profileService.create(userId, dto);
 
     return;
   }
 
   @Get()
-  async findAll() {
+  async findAll(): Promise<Profile[]> {
     return await this.profileService.findAll();
   }
 
   @Get(':id')
-  async findOne(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+  async findById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<Profile> {
     const profile = await this.profileService.findById(id);
 
     if (!profile) {
@@ -50,10 +53,10 @@ export class ProfileController {
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @Put('')
-  async update(
+  async updateById(
     @CurrentUser('id') userId: number,
     @Body() dto: UpdateProfileDto,
-  ) {
+  ): Promise<void> {
     await this.profileService.updateByUserId(userId, dto);
     return;
   }
