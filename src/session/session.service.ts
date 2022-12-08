@@ -45,7 +45,7 @@ export class SessionService {
     const key = await this.repository.createWithTTL(
       { userId, token },
       session,
-      expirationTime,
+      this.TTL,
     );
     return key;
   }
