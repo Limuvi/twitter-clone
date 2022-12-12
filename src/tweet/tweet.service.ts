@@ -14,6 +14,7 @@ import { Tweet } from './entities/tweet.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { Like } from './entities/tweet-like.entity';
 import { FileService } from '../file/file.service';
+import { PaginationOptions, SortingOptions } from '../common/types';
 
 @Injectable()
 export class TweetService {
@@ -72,7 +73,7 @@ export class TweetService {
         throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
       }
 
-      const imageNames = images.length
+      const imageNames = images?.length
         ? await this.filesService.create(images)
         : [];
 
@@ -120,20 +121,74 @@ export class TweetService {
         tweet: { id: tweetId },
         profile: { id: profileId },
       });
+
+      const updated = await this.tweetsRepository
+        .createQueryBuilder('tweet')
+        .update(Tweet)
+        .set({ likesNumber: () => '"likesNumber" + 1' })
+        .where({ id: tweetId })
+        .returning('*')
+        .execute();
+
+      return updated.raw;
     }
 
-    return await this.tweetsRepository.findOneBy({ id: tweetId });
+    return tweet;
   }
 
-  async findTweets(): Promise<Tweet[]> {
+  async findTweets(
+    paginationOptions: PaginationOptions,
+    sortingOptions: SortingOptions,
+    profileId?: string,
+  ): Promise<Tweet[]> {
+    const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
+    const { page = 1, limit = 10 } = paginationOptions;
+
     return await this.tweetsRepository.find({
-      where: { isComment: false },
+      where: { isComment: false, author: { id: profileId } },
       relations: {
         author: true,
         parentRecord: true,
         parentAuthor: true,
       },
+      order: { [sortBy]: orderBy },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+  }
+
+  async findFollowingsTweets(
+    paginationOptions: PaginationOptions,
+    sortingOptions: SortingOptions,
+    userId: number,
+  ): Promise<Tweet[]> {
+    const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
+    const { page = 1, limit = 10 } = paginationOptions;
+
+    const profile = await this.profilesService.findByUserId(userId);
+
+    if (!profile) {
+      return this.findTweets(paginationOptions, sortingOptions);
+    }
+
+    return await this.tweetsRepository
+      .createQueryBuilder('tweet')
+      .leftJoinAndSelect('tweet.author', 'profile')
+      .leftJoinAndSelect('tweet.parentRecord', 'parentRecord')
+      .leftJoinAndSelect('tweet.parentAuthor', 'parentAuthor')
+      .innerJoin(
+        'profile.followings',
+        'followings',
+        'followings.followerId = :followerId',
+        {
+          followerId: profile.id,
+        },
+      )
+      .where({ isComment: false })
+      .orderBy({ ['tweet.' + sortBy]: orderBy })
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
   }
 
   findById(id: string): Promise<Tweet> {
@@ -147,7 +202,12 @@ export class TweetService {
     return this.tweetsRepository.findBy({ author: { id } });
   }
 
-  async findDescendantsTreeById(id: string, isComment: boolean): Promise<any> {
+  async findDescendantsTreeById(
+    id: string,
+    isComment: boolean,
+    sortingOptions: SortingOptions,
+  ): Promise<any> {
+    const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
     const tweet = await this.findById(id);
 
     if (!tweet) {
@@ -170,7 +230,11 @@ export class TweetService {
           parentRecord: { id: tweet.id },
         },
       ])
-      .orderBy('tweet.createdAt', 'ASC')
+      .orderBy(
+        `(CASE WHEN tweet.parentRecordId = '${id}' THEN tweet.${sortBy} END)`,
+        orderBy,
+      )
+      .addOrderBy('tweet.createdAt', 'ASC')
       .getMany();
 
     const tweetsTree = this.mapToTree(tweets);
@@ -270,9 +334,19 @@ export class TweetService {
 
     if (like) {
       await this.likesRepository.delete(like.id);
+
+      const updated = await this.tweetsRepository
+        .createQueryBuilder('tweet')
+        .update(Tweet)
+        .set({ likesNumber: () => `"likesNumber" - 1` })
+        .where({ id: tweetId })
+        .returning('*')
+        .execute();
+
+      return updated.raw;
     }
 
-    return await this.tweetsRepository.findOneBy({ id: tweetId });
+    return tweet;
   }
 
   protected mapToTree(dataset: Tweet[]): any[] {

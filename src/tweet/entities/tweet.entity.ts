@@ -1,4 +1,5 @@
 import {
+  AfterLoad,
   Column,
   CreateDateColumn,
   Entity,
@@ -29,20 +30,23 @@ export class Tweet {
   @Column('varchar', { array: true, nullable: true })
   imageNames: string[];
 
+  @Column({ default: 0 })
+  likesNumber: number;
+
+  @RelationId('author')
+  authorId: string;
+
+  @RelationId('parentAuthor')
+  parentAuthorId: string;
+
+  @RelationId('parentRecord')
+  parentRecordId: string;
+
   @ManyToOne(() => Profile, (profile) => profile.tweets, {
     onDelete: 'SET NULL',
     nullable: false,
   })
   author: Profile;
-  @RelationId('author')
-  authorId: string;
-
-  @ManyToOne(() => Profile, (profile) => profile.parentTweets, {
-    onDelete: 'SET NULL',
-  })
-  parentAuthor: Profile;
-  @RelationId('parentAuthor')
-  parentAuthorId: string;
 
   @OneToMany(() => Like, (like) => like.tweet, {
     // cascade: true,
@@ -52,13 +56,17 @@ export class Tweet {
   })
   likes: Like[];
 
+  @ManyToOne(() => Profile, (profile) => profile.parentTweets, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  parentAuthor: Profile;
+
   @TreeChildren()
   replies: Tweet[];
 
-  @TreeParent({ onDelete: 'SET NULL' })
+  @TreeParent({ onDelete: 'CASCADE' })
   parentRecord: Tweet;
-  @RelationId('parentRecord')
-  parentRecordId: string;
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -71,7 +79,6 @@ export class Tweet {
     type: 'timestamp',
     precision: 3,
     default: () => 'CURRENT_TIMESTAMP(6)',
-    // onUpdate: 'CURRENT_TIMESTAMP(6)',
   })
   updatedAt: Date;
 }

@@ -11,6 +11,7 @@ import {
   HttpCode,
   UseInterceptors,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { TweetService } from './tweet.service';
 import { CreateTweetDto } from './dto/create-tweet.dto';
@@ -22,7 +23,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { ImagesInterceptor } from '../common/interceptors/image.interceptor';
 import { Tweet } from './entities/tweet.entity';
-import { Like } from './entities/tweet-like.entity';
+import { TweetQueryDto } from './dto/tweet-query.dto';
 
 @Controller('tweets')
 export class TweetController {
@@ -73,8 +74,27 @@ export class TweetController {
   }
 
   @Get()
-  async findAll(): Promise<Tweet[]> {
-    return await this.tweetService.findTweets();
+  async findAll(@Query() query: TweetQueryDto): Promise<Tweet[]> {
+    const { page, limit, sortBy, orderBy, profileId } = query;
+    return await this.tweetService.findTweets(
+      { page, limit },
+      { sortBy, orderBy },
+      profileId,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('followings')
+  async findFollowingsTweets(
+    @Query() query: TweetQueryDto,
+    @CurrentUser('id') userId: number,
+  ): Promise<Tweet[]> {
+    const { page, limit, sortBy, orderBy } = query;
+    return await this.tweetService.findFollowingsTweets(
+      { page, limit },
+      { sortBy, orderBy },
+      userId,
+    );
   }
 
   @Get([':id', 'comments/:id'])
@@ -89,13 +109,27 @@ export class TweetController {
   }
 
   @Get(':id/comments')
-  async findCommentsTreeById(@Param('id') id: string): Promise<any> {
-    return await this.tweetService.findDescendantsTreeById(id, true);
+  async findCommentsTreeById(
+    @Param('id') id: string,
+    @Query() query: TweetQueryDto,
+  ): Promise<any> {
+    const { sortBy, orderBy } = query;
+    return await this.tweetService.findDescendantsTreeById(id, true, {
+      sortBy,
+      orderBy,
+    });
   }
 
   @Get(':id/retweets')
-  async findRetweetsTreeById(@Param('id') id: string): Promise<any> {
-    return await this.tweetService.findDescendantsTreeById(id, false);
+  async findRetweetsTreeById(
+    @Param('id') id: string,
+    @Query() query: TweetQueryDto,
+  ): Promise<any> {
+    const { sortBy, orderBy } = query;
+    return await this.tweetService.findDescendantsTreeById(id, false, {
+      sortBy,
+      orderBy,
+    });
   }
 
   @UseGuards(AuthGuard)
