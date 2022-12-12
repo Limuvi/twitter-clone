@@ -26,6 +26,7 @@ import { Like } from './tweet/entities/tweet-like.entity';
 import { FileModule } from './file/file.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { Following } from './profile/entities/following.entity';
 
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { join } from 'path';
       username: process.env.POSTGRES_USERNAME,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DATABASE,
-      entities: [Like, Tweet, Profile, User],
+      entities: [Like, Tweet, Profile, Following, User],
       autoLoadEntities: true,
       synchronize: true,
       logging: ['error'],

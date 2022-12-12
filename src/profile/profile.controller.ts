@@ -8,6 +8,7 @@ import {
   Put,
   ParseUUIDPipe,
   HttpCode,
+  Delete,
 } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
@@ -16,6 +17,7 @@ import { AuthGuard } from '../common/guards';
 import { CurrentUser } from '../common/decorators';
 import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
 import { Profile } from './entities/profile.entity';
+import { threadId } from 'worker_threads';
 
 @Controller('profiles')
 export class ProfileController {
@@ -28,6 +30,16 @@ export class ProfileController {
     @CurrentUser('id') userId: number,
   ): Promise<void> {
     await this.profileService.create(userId, dto);
+    return;
+  }
+
+  @UseGuards(AuthGuard)
+  @Post(':id/followers')
+  async addFollower(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) followingId: string,
+    @CurrentUser('id') userId: number,
+  ): Promise<void> {
+    await this.profileService.addFollower(userId, followingId);
 
     return;
   }
@@ -50,6 +62,20 @@ export class ProfileController {
     return profile;
   }
 
+  @Get(':id/followers')
+  async findFollowers(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<Profile[]> {
+    return await this.profileService.findFollowersById(id);
+  }
+
+  @Get(':id/following')
+  async findFollowingById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<Profile[]> {
+    return await this.profileService.findFollowingById(id);
+  }
+
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @Put('')
@@ -58,6 +84,17 @@ export class ProfileController {
     @Body() dto: UpdateProfileDto,
   ): Promise<void> {
     await this.profileService.updateByUserId(userId, dto);
+    return;
+  }
+
+  @UseGuards(AuthGuard)
+  @HttpCode(204)
+  @Delete(':id/followers')
+  async deleteFollower(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) followingId: string,
+    @CurrentUser('id') userId: number,
+  ): Promise<void> {
+    await this.profileService.deleteFollower(userId, followingId);
     return;
   }
 }

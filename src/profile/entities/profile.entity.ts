@@ -9,6 +9,7 @@ import {
 import { Like } from '../../tweet/entities/tweet-like.entity';
 import { Tweet } from '../../tweet/entities/tweet.entity';
 import { User } from '../../user/entities/user.entity';
+import { Following } from './following.entity';
 
 @Entity()
 export class Profile {
@@ -40,4 +41,16 @@ export class Profile {
     onDelete: 'CASCADE',
   })
   likedRecords: Like[];
+
+  @OneToMany(() => Following, (f) => f.follower, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  followers: Following[];
+
+  @OneToMany(() => Following, (f) => f.following, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  followings: Following[];
 }
