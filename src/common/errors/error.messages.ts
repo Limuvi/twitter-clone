@@ -14,4 +14,6 @@ export const ERROR_MESSAGES = {
   INVALID_REFRESH_SESSION: 'Invalid refresh session',
   CREDS_DO_NOT_MATCH: 'Email and password do not match',
   ACCESS_DENIED: 'Access denied',
+
+  FOLLOWERS_ONLY_TWEET: 'This record (tweet or comment) is followers-only',
 };

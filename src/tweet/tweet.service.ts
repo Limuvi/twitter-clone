@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, Repository, TreeRepository } from 'typeorm';
+import { DeleteResult, In, Not, Repository, TreeRepository } from 'typeorm';
 import {
   AccessDeniedError,
   ERROR_MESSAGES,
@@ -66,30 +66,29 @@ export class TweetService {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
+    const imageNames = images?.length
+      ? await this.filesService.create(images)
+      : [];
+
     if (parentId) {
-      const parentRecord = await this.findById(parentId);
+      const parentRecord = await this.tweetsRepository.findOne({
+        where: { id: parentId },
+      });
 
       if (!parentRecord) {
         throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
       }
 
-      const imageNames = images?.length
-        ? await this.filesService.create(images)
-        : [];
-
       return await this.tweetsRepository.save({
         ...dto,
         isComment,
+        isPrivate: parentRecord.isPrivate,
         author: profile,
         parentRecord,
-        parentAuthor: parentRecord.author,
+        parentAuthorId: parentRecord.authorId,
         imageNames,
       });
     }
-
-    const imageNames = images.length
-      ? await this.filesService.create(images)
-      : [];
 
     return await this.tweetsRepository.save({
       ...dto,
@@ -99,62 +98,45 @@ export class TweetService {
     });
   }
 
-  async createLike(id: string, userId: number): Promise<Tweet> {
-    const tweet = await this.findById(id);
-    const profile = await this.profilesService.findByUserId(userId);
-
-    if (!tweet) {
-      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
-    } else if (!profile) {
-      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
-    }
-    const { id: tweetId } = tweet;
-    const { id: profileId } = profile;
-    const like = await this.likesRepository
-      .createQueryBuilder('like')
-      .where('like.profile.id = :profileId', { profileId })
-      .andWhere('like.tweetId = :tweetId', { tweetId })
-      .getOne();
-
-    if (!like) {
-      await this.likesRepository.save({
-        tweet: { id: tweetId },
-        profile: { id: profileId },
-      });
-
-      const updated = await this.tweetsRepository
-        .createQueryBuilder('tweet')
-        .update(Tweet)
-        .set({ likesNumber: () => '"likesNumber" + 1' })
-        .where({ id: tweetId })
-        .returning('*')
-        .execute();
-
-      return updated.raw;
-    }
-
-    return tweet;
+  async addLike(id: string, userId: number): Promise<Tweet> {
+    return await this.toggleLike(id, userId, false);
   }
 
   async findTweets(
     paginationOptions: PaginationOptions,
     sortingOptions: SortingOptions,
     profileId?: string,
+    userId?: number,
   ): Promise<Tweet[]> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
     const { page = 1, limit = 10 } = paginationOptions;
 
-    return await this.tweetsRepository.find({
-      where: { isComment: false, author: { id: profileId } },
-      relations: {
-        author: true,
-        parentRecord: true,
-        parentAuthor: true,
-      },
-      order: { [sortBy]: orderBy },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const privacyCondtions: object[] = [{ isPrivate: false }];
+    let followings = [];
+
+    if (userId) {
+      const profile = await this.profilesService.findByUserId(userId);
+      followings = await this.profilesService.findFollowingsByProfile(profile);
+
+      const followingIds = [...followings.map(({ id }) => id), profile.id];
+
+      privacyCondtions.push({
+        isPrivate: true,
+        author: { id: In(followingIds) },
+      });
+    }
+
+    return await this.tweetsRepository
+      .createQueryBuilder('tweet')
+      .leftJoinAndSelect('tweet.author', 'profile')
+      .leftJoinAndSelect('tweet.parentRecord', 'parentRecord')
+      .leftJoinAndSelect('tweet.parentAuthor', 'parentAuthor')
+      .where({ isComment: false, author: profileId ? { id: profileId } : {} })
+      .andWhere(privacyCondtions)
+      .orderBy({ ['tweet.' + sortBy]: orderBy })
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
   }
 
   async findFollowingsTweets(
@@ -191,27 +173,51 @@ export class TweetService {
       .getMany();
   }
 
-  findById(id: string): Promise<Tweet> {
-    return this.tweetsRepository.findOne({
+  async findById(id: string, userId: number): Promise<Tweet> {
+    const tweet = await this.tweetsRepository.findOne({
       where: { id },
       relations: { author: true, parentRecord: true, parentAuthor: true },
     });
-  }
 
-  findByAuthorId(id: string): Promise<Tweet[]> {
-    return this.tweetsRepository.findBy({ author: { id } });
+    if (!tweet) {
+      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
+    } else if (tweet.isPrivate) {
+      const profile = await this.profilesService.findByUserId(userId);
+      const isFollower = await this.profilesService.isFollower(
+        profile?.id,
+        tweet.authorId,
+      );
+      if (!isFollower && profile.id !== tweet.authorId) {
+        throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
+      }
+    }
+
+    return tweet;
   }
 
   async findDescendantsTreeById(
     id: string,
     isComment: boolean,
     sortingOptions: SortingOptions,
+    userId: number,
   ): Promise<any> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
-    const tweet = await this.findById(id);
+    const tweet = await this.tweetsRepository.findOne({
+      where: { id },
+    });
 
     if (!tweet) {
       throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
+    } else if (tweet.isPrivate) {
+      const profile = await this.profilesService.findByUserId(userId);
+      const isFollower = await this.profilesService.isFollower(
+        profile?.id,
+        tweet.authorId,
+      );
+
+      if (!isFollower) {
+        throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
+      }
     }
 
     const tweets = await this.tweetsRepository
@@ -248,26 +254,31 @@ export class TweetService {
     dto: UpdateTweetDto,
     images: Array<Express.Multer.File>,
   ) {
-    return await this.update(id, userId, false, dto, images);
+    const { isPrivate } = dto;
+    return await this.update(id, userId, false, isPrivate, dto, images);
   }
 
   async updateComment(
     id: string,
     userId: number,
-    dto: UpdateTweetDto,
+    dto: UpdateCommentDto,
     images: Array<Express.Multer.File>,
   ) {
-    return await this.update(id, userId, true, dto, images);
+    return await this.update(id, userId, true, null, dto, images);
   }
 
   async update(
     id: string,
     userId: number,
     isComment: boolean,
+    isPrivateRecord: boolean,
     dto: UpdateTweetDto | UpdateCommentDto,
     images: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    const tweet = await this.findById(id);
+    const tweet = await this.tweetsRepository.findOne({
+      where: { id },
+      relations: { parentRecord: true },
+    });
     const profile = await this.profilesService.findByUserId(userId);
 
     if (!tweet || tweet.isComment !== isComment) {
@@ -281,22 +292,33 @@ export class TweetService {
     const imageNames = images
       ? await this.filesService.replace(images, tweet.imageNames)
       : tweet.imageNames;
+    const isPrivate = tweet.parentRecord?.isPrivate || isPrivateRecord;
+
+    //if privacy changed, update all descendants isPrivate field
+    if (isPrivate !== tweet.isPrivate) {
+      await this.tweetsRepository
+        .createDescendantsQueryBuilder('tweet', 'tweetClosure', tweet)
+        .update({ isPrivate })
+        .andWhere({ id: Not(id) })
+        .execute();
+    }
 
     const updated = await this.tweetsRepository.save({
       ...tweet,
       ...dto,
       imageNames,
+      isPrivate,
     });
 
     delete updated.parentRecord;
-    delete updated.parentAuthor;
-    delete updated.author;
 
     return updated;
   }
 
   async delete(id: string, userId: number): Promise<DeleteResult> {
-    const tweet = await this.findById(id);
+    const tweet = await this.tweetsRepository.findOne({
+      where: { id },
+    });
     const profile = await this.profilesService.findByUserId(userId);
 
     if (!tweet) {
@@ -316,14 +338,30 @@ export class TweetService {
   }
 
   async deleteLike(id: string, userId: number): Promise<Tweet> {
-    const tweet = await this.findById(id);
+    return await this.toggleLike(id, userId, true);
+  }
+
+  protected async toggleLike(id: string, userId: number, isDeleting: boolean) {
+    const tweet = await this.tweetsRepository.findOne({
+      where: { id },
+    });
     const profile = await this.profilesService.findByUserId(userId);
 
     if (!tweet) {
       throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
     } else if (!profile) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    } else if (tweet.isPrivate && tweet.authorId !== profile.id) {
+      const isFollowers = await this.profilesService.isFollowers(
+        profile.id,
+        tweet.authorId,
+      );
+
+      if (!isFollowers) {
+        throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
+      }
     }
+
     const { id: tweetId } = tweet;
     const { id: profileId } = profile;
     const like = await this.likesRepository
@@ -332,13 +370,22 @@ export class TweetService {
       .andWhere('like.tweetId = :tweetId', { tweetId })
       .getOne();
 
-    if (like) {
-      await this.likesRepository.delete(like.id);
+    if ((!like && !isDeleting) || (like && isDeleting)) {
+      if (!isDeleting) {
+        await this.likesRepository.save({
+          tweet: { id: tweetId },
+          profile: { id: profileId },
+        });
+      } else {
+        await this.likesRepository.delete(like.id);
+      }
+
+      const count = isDeleting ? -1 : 1;
 
       const updated = await this.tweetsRepository
         .createQueryBuilder('tweet')
         .update(Tweet)
-        .set({ likesNumber: () => `"likesNumber" - 1` })
+        .set({ likesNumber: () => `"likesNumber" + ${count}` })
         .where({ id: tweetId })
         .returning('*')
         .execute();

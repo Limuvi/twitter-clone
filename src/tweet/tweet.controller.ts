@@ -70,16 +70,20 @@ export class TweetController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser('id') userId: number,
   ): Promise<Tweet> {
-    return await this.tweetService.createLike(id, userId);
+    return await this.tweetService.addLike(id, userId);
   }
 
   @Get()
-  async findAll(@Query() query: TweetQueryDto): Promise<Tweet[]> {
+  async findAll(
+    @Query() query: TweetQueryDto,
+    @CurrentUser('id') userId: number,
+  ): Promise<Tweet[]> {
     const { page, limit, sortBy, orderBy, profileId } = query;
     return await this.tweetService.findTweets(
       { page, limit },
       { sortBy, orderBy },
       profileId,
+      userId,
     );
   }
 
@@ -98,12 +102,11 @@ export class TweetController {
   }
 
   @Get([':id', 'comments/:id'])
-  async findTweetById(@Param('id') id: string): Promise<Tweet> {
-    const tweet = await this.tweetService.findById(id);
-
-    if (!tweet) {
-      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
-    }
+  async findTweetById(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: number,
+  ): Promise<Tweet> {
+    const tweet = await this.tweetService.findById(id, userId);
 
     return tweet;
   }
@@ -111,25 +114,37 @@ export class TweetController {
   @Get(':id/comments')
   async findCommentsTreeById(
     @Param('id') id: string,
+    @CurrentUser('id') userId: number,
     @Query() query: TweetQueryDto,
   ): Promise<any> {
     const { sortBy, orderBy } = query;
-    return await this.tweetService.findDescendantsTreeById(id, true, {
-      sortBy,
-      orderBy,
-    });
+    return await this.tweetService.findDescendantsTreeById(
+      id,
+      true,
+      {
+        sortBy,
+        orderBy,
+      },
+      userId,
+    );
   }
 
   @Get(':id/retweets')
   async findRetweetsTreeById(
     @Param('id') id: string,
+    @CurrentUser('id') userId: number,
     @Query() query: TweetQueryDto,
   ): Promise<any> {
     const { sortBy, orderBy } = query;
-    return await this.tweetService.findDescendantsTreeById(id, false, {
-      sortBy,
-      orderBy,
-    });
+    return await this.tweetService.findDescendantsTreeById(
+      id,
+      false,
+      {
+        sortBy,
+        orderBy,
+      },
+      userId,
+    );
   }
 
   @UseGuards(AuthGuard)

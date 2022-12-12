@@ -33,6 +33,9 @@ export class Tweet {
   @Column({ default: 0 })
   likesNumber: number;
 
+  @Column({ default: false })
+  isPrivate: boolean;
+
   @RelationId('author')
   authorId: string;
 

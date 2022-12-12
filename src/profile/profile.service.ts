@@ -50,6 +50,10 @@ export class ProfileService {
   }
 
   async isFollowers(firstId: string, secondId: string): Promise<boolean> {
+    if (!firstId || !secondId) {
+      return false;
+    }
+
     const followers = await this.followersRepository.find({
       where: [
         {
@@ -64,6 +68,21 @@ export class ProfileService {
     });
 
     return followers.length > 1;
+  }
+
+  async isFollower(followerId: string, followingId: string): Promise<boolean> {
+    if (!followerId || !followingId) {
+      return false;
+    }
+
+    const follower = await this.followersRepository.findOne({
+      where: {
+        followerId,
+        followingId,
+      },
+    });
+
+    return !!follower;
   }
 
   findAll(): Promise<Profile[]> {
@@ -92,13 +111,18 @@ export class ProfileService {
     return followers;
   }
 
-  async findFollowingById(id: string): Promise<Profile[]> {
+  async findFollowingsById(id: string): Promise<Profile[]> {
     const profile = await this.findById(id);
 
     if (!profile) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
+    const following = await this.findFollowingsByProfile(profile);
+    return following;
+  }
+
+  async findFollowingsByProfile(profile: Profile): Promise<Profile[]> {
     const following = await this.profilesRepository
       .createQueryBuilder('profile')
       .innerJoin(
@@ -106,7 +130,7 @@ export class ProfileService {
         'following',
         'following.followerId = :id',
         {
-          id,
+          id: profile?.id,
         },
       )
       .getMany();

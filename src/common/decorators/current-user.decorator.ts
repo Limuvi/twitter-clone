@@ -4,8 +4,9 @@ import { CurrentUserData } from '../types';
 export const CurrentUser = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    const { id }: CurrentUserData = request.currentUser;
-    const currentUser = { id };
+    // const { id = null }: CurrentUserData = request?.currentUser;
+    const id = request?.currentUser?.id;
+    const currentUser: CurrentUserData = { id };
 
     return data ? currentUser?.[data] : currentUser;
   },

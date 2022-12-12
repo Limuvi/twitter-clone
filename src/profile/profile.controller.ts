@@ -17,7 +17,6 @@ import { AuthGuard } from '../common/guards';
 import { CurrentUser } from '../common/decorators';
 import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
 import { Profile } from './entities/profile.entity';
-import { threadId } from 'worker_threads';
 
 @Controller('profiles')
 export class ProfileController {
@@ -73,7 +72,7 @@ export class ProfileController {
   async findFollowingById(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<Profile[]> {
-    return await this.profileService.findFollowingById(id);
+    return await this.profileService.findFollowingsById(id);
   }
 
   @HttpCode(204)
