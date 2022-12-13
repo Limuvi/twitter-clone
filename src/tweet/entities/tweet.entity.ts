@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Profile } from '../../profile/entities/profile.entity';
+import { Bookmark } from './tweet-bookmark.entity';
 import { Like } from './tweet-like.entity';
 
 @Tree('materialized-path')
@@ -58,6 +59,12 @@ export class Tweet {
     onDelete: 'CASCADE',
   })
   likes: Like[];
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.tweet, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  bookmarks: Bookmark[];
 
   @ManyToOne(() => Profile, (profile) => profile.parentTweets, {
     onUpdate: 'CASCADE',

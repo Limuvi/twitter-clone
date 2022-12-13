@@ -28,6 +28,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { Following } from './profile/entities/following.entity';
 import './common/polyfills';
+import { Bookmark } from './tweet/entities/tweet-bookmark.entity';
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import './common/polyfills';
       username: process.env.POSTGRES_USERNAME,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DATABASE,
-      entities: [Like, Tweet, Profile, Following, User],
+      entities: [Bookmark, Like, Tweet, Profile, Following, User],
       autoLoadEntities: true,
       synchronize: true,
       logging: ['error'],

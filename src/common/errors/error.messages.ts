@@ -5,6 +5,7 @@ export const ERROR_MESSAGES = {
   PROFILE_NOT_FOUND: 'Profile is not found',
   AUTHOR_PROFILE_NOT_FOUND: 'Author is not found',
   TWEET_NOT_FOUND: 'Record (tweet or comment) is not found',
+  BOOKMARK_NOT_FOUND: 'Bookmark is not found',
 
   ALREADY_EXISTS: 'Entity is already exists',
   EMAIL_IS_EXISTS: 'This email is already in use',

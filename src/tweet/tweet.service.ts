@@ -22,6 +22,7 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { Like } from './entities/tweet-like.entity';
 import { FileService } from '../file/file.service';
 import { PaginationOptions, SortingOptions } from '../common/types';
+import { Bookmark } from './entities/tweet-bookmark.entity';
 
 @Injectable()
 export class TweetService {
@@ -30,6 +31,8 @@ export class TweetService {
     private tweetsRepository: TreeRepository<Tweet>,
     @InjectRepository(Like)
     private likesRepository: Repository<Like>,
+    @InjectRepository(Bookmark)
+    private bookmarksRepository: Repository<Bookmark>,
     private profilesService: ProfileService,
     private filesService: FileService,
   ) {}
@@ -107,6 +110,26 @@ export class TweetService {
 
   async addLike(id: string, userId: number): Promise<Tweet> {
     return await this.toggleLike(id, userId, false);
+  }
+
+  async addBookmark(tweetId: string, userId: number): Promise<void> {
+    const tweet = await this.findById(tweetId, userId);
+    const profile = await this.profilesService.findByUserId(userId);
+
+    if (!profile) {
+      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    }
+
+    const bookmark = await this.bookmarksRepository.findOne({
+      where: { tweetId, profileId: profile.id },
+    });
+
+    if (!bookmark) {
+      await this.bookmarksRepository.insert({
+        tweet,
+        profile,
+      });
+    }
   }
 
   async findTweets(
@@ -187,10 +210,40 @@ export class TweetService {
       .getMany();
   }
 
-  async findById(id: string, userId: number): Promise<Tweet> {
+  async findBookmarks(userId: number): Promise<Tweet[]> {
+    const profile = await this.profilesService.findByUserId(userId);
+
+    if (!profile) {
+      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    }
+
+    return await this.tweetsRepository
+      .createQueryBuilder('tweet')
+      .innerJoin(
+        'tweet.bookmarks',
+        'bookmark',
+        'bookmark.profileId = :profileId',
+        { profileId: profile.id },
+      )
+      .getMany();
+  }
+
+  async findById(
+    id: string,
+    userId: number,
+    relations: {
+      author?: boolean;
+      parentRecord?: boolean;
+      parentAuthor?: boolean;
+    } = {
+      author: true,
+      parentRecord: true,
+      parentAuthor: true,
+    },
+  ): Promise<Tweet> {
     const tweet = await this.tweetsRepository.findOne({
       where: { id },
-      relations: { author: true, parentRecord: true, parentAuthor: true },
+      relations,
     });
 
     if (!tweet) {
@@ -201,11 +254,10 @@ export class TweetService {
         profile?.id,
         tweet.authorId,
       );
-      if (!isFollower && profile.id !== tweet.authorId) {
+      if (!isFollower) {
         throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
       }
     }
-
     return tweet;
   }
 
@@ -216,23 +268,11 @@ export class TweetService {
     userId: number,
   ): Promise<any> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
-    const tweet = await this.tweetsRepository.findOne({
-      where: { id },
+    const tweet = await this.findById(id, userId, {
+      author: false,
+      parentAuthor: false,
+      parentRecord: false,
     });
-
-    if (!tweet) {
-      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
-    } else if (tweet.isPrivate) {
-      const profile = await this.profilesService.findByUserId(userId);
-      const isFollower = await this.profilesService.isFollower(
-        profile?.id,
-        tweet.authorId,
-      );
-
-      if (!isFollower) {
-        throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
-      }
-    }
 
     const tweets = await this.tweetsRepository
       .createDescendantsQueryBuilder('tweet', 'tweetClosure', tweet)
@@ -308,13 +348,23 @@ export class TweetService {
       : tweet.imageNames;
     const isPrivate = tweet.parentRecord?.isPrivate || isPrivateRecord;
 
-    //if privacy changed, update all descendants isPrivate field
     if (isPrivate !== tweet.isPrivate) {
+      //if privacy changed, update all descendants isPrivate field
       await this.tweetsRepository
         .createDescendantsQueryBuilder('tweet', 'tweetClosure', tweet)
         .update({ isPrivate })
         .andWhere({ id: Not(id) })
         .execute();
+
+      if (isPrivate) {
+        const followers = await this.profilesService.findFollowersByProfile(
+          profile,
+        );
+        await this.bookmarksRepository.delete({
+          profileId: Not(In(followers)),
+          tweetId: tweet.id,
+        });
+      }
     }
 
     const updated = await this.tweetsRepository.save({
@@ -355,25 +405,34 @@ export class TweetService {
     return await this.toggleLike(id, userId, true);
   }
 
+  async deleteBookmark(tweetId: string, userId: number): Promise<void> {
+    const profile = await this.profilesService.findByUserId(userId);
+
+    if (!profile) {
+      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    }
+    const { id: profileId } = profile;
+    const bookmark = await this.bookmarksRepository.findOne({
+      where: { tweetId, profileId },
+    });
+
+    if (!bookmark) {
+      throw new NotFoundError(ERROR_MESSAGES.BOOKMARK_NOT_FOUND);
+    }
+
+    await this.bookmarksRepository.delete({ tweetId, profileId: profile.id });
+  }
+
   protected async toggleLike(id: string, userId: number, isDeleting: boolean) {
-    const tweet = await this.tweetsRepository.findOne({
-      where: { id },
+    const tweet = await this.findById(id, userId, {
+      author: false,
+      parentAuthor: false,
+      parentRecord: false,
     });
     const profile = await this.profilesService.findByUserId(userId);
 
-    if (!tweet) {
-      throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
-    } else if (!profile) {
+    if (!profile) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
-    } else if (tweet.isPrivate && tweet.authorId !== profile.id) {
-      const isFollowers = await this.profilesService.isFollowers(
-        profile.id,
-        tweet.authorId,
-      );
-
-      if (!isFollowers) {
-        throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
-      }
     }
 
     const { id: tweetId } = tweet;

@@ -72,6 +72,15 @@ export class TweetController {
     return await this.tweetService.addLike(id, userId);
   }
 
+  @UseGuards(AuthGuard)
+  @Post(':id/bookmarks')
+  async addBookmark(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser('id') userId: number,
+  ): Promise<void> {
+    return await this.tweetService.addBookmark(id, userId);
+  }
+
   @Get()
   async findAll(
     @Query() query: TweetQueryDto,
@@ -102,9 +111,15 @@ export class TweetController {
     );
   }
 
+  @UseGuards(AuthGuard)
+  @Get('bookmarks')
+  async getBookmarks(@CurrentUser('id') userId: number): Promise<Tweet[]> {
+    return await this.tweetService.findBookmarks(userId);
+  }
+
   @Get([':id', 'comments/:id'])
   async findTweetById(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser('id') userId: number,
   ): Promise<Tweet> {
     const tweet = await this.tweetService.findById(id, userId);
@@ -181,6 +196,16 @@ export class TweetController {
   ): Promise<void> {
     await this.tweetService.delete(id, userId);
     return;
+  }
+
+  @UseGuards(AuthGuard)
+  @HttpCode(204)
+  @Delete(':id/bookmarks')
+  async deleteBookmark(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser('id') userId: number,
+  ): Promise<void> {
+    return await this.tweetService.deleteBookmark(id, userId);
   }
 
   @UseGuards(AuthGuard)

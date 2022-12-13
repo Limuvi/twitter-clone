@@ -54,6 +54,8 @@ export class ProfileService {
   async isFollowers(firstId: string, secondId: string): Promise<boolean> {
     if (!firstId || !secondId) {
       return false;
+    } else if (firstId === secondId) {
+      return true;
     }
 
     const followers = await this.followersRepository.find({
@@ -75,13 +77,12 @@ export class ProfileService {
   async isFollower(followerId: string, followingId: string): Promise<boolean> {
     if (!followerId || !followingId) {
       return false;
+    } else if (followerId === followingId) {
+      return true;
     }
 
     const follower = await this.followersRepository.findOne({
-      where: {
-        followerId,
-        followingId,
-      },
+      where: { followerId, followingId },
     });
 
     return !!follower;
@@ -122,21 +123,12 @@ export class ProfileService {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
-    const followers = await this.profilesRepository
-      .createQueryBuilder('profile')
-      .innerJoin(
-        'profile.followers',
-        'follower',
-        'follower.followingId = :id',
-        {
-          id,
-        },
-      )
-      .getMany();
+    const followers = await this.findFollowersByProfile(profile);
 
     return followers;
   }
 
+  //dry вышел из чата
   async findFollowingsById(id: string): Promise<Profile[]> {
     const profile = await this.findById(id);
 
@@ -148,7 +140,31 @@ export class ProfileService {
     return following;
   }
 
+  async findFollowersByProfile(profile: Profile): Promise<Profile[]> {
+    if (!profile) {
+      return [];
+    }
+
+    const followers = await this.profilesRepository
+      .createQueryBuilder('profile')
+      .innerJoin(
+        'profile.followers',
+        'follower',
+        'follower.followingId = :id',
+        {
+          id: profile.id,
+        },
+      )
+      .getMany();
+
+    return followers;
+  }
+
   async findFollowingsByProfile(profile: Profile): Promise<Profile[]> {
+    if (!profile) {
+      return [];
+    }
+
     const following = await this.profilesRepository
       .createQueryBuilder('profile')
       .innerJoin(
@@ -156,7 +172,7 @@ export class ProfileService {
         'following',
         'following.followerId = :id',
         {
-          id: profile?.id,
+          id: profile.id,
         },
       )
       .getMany();

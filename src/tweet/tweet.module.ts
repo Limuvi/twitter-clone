@@ -6,9 +6,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProfileModule } from '../profile/profile.module';
 import { Like } from './entities/tweet-like.entity';
 import { FileModule } from '../file/file.module';
+import { Bookmark } from './entities/tweet-bookmark.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tweet, Like]), ProfileModule, FileModule],
+  imports: [
+    TypeOrmModule.forFeature([Tweet, Like, Bookmark]),
+    ProfileModule,
+    FileModule,
+  ],
   controllers: [TweetController],
   providers: [TweetService],
 })

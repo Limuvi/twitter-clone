@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { VirtualColumn } from '../../common/decorators';
+import { Bookmark } from '../../tweet/entities/tweet-bookmark.entity';
 import { Like } from '../../tweet/entities/tweet-like.entity';
 import { Tweet } from '../../tweet/entities/tweet.entity';
 import { User } from '../../user/entities/user.entity';
@@ -48,6 +49,13 @@ export class Profile {
     onDelete: 'CASCADE',
   })
   likedRecords: Like[];
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.profile, {
+    cascade: true,
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  bookmarkRecords: Bookmark[];
 
   @OneToMany(() => Following, (f) => f.follower, {
     onUpdate: 'CASCADE',
