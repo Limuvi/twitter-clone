@@ -6,6 +6,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { VirtualColumn } from '../../common/decorators';
 import { Like } from '../../tweet/entities/tweet-like.entity';
 import { Tweet } from '../../tweet/entities/tweet.entity';
 import { User } from '../../user/entities/user.entity';
@@ -24,6 +25,12 @@ export class Profile {
 
   @Column({ unique: true })
   userId: number;
+
+  @VirtualColumn()
+  numberOfFollowers: number;
+
+  @VirtualColumn()
+  numberOfFollowings: number;
 
   @OneToOne(() => User, (user) => user.profile, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

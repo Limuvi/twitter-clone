@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   HttpCode,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
@@ -17,6 +18,7 @@ import { AuthGuard } from '../common/guards';
 import { CurrentUser } from '../common/decorators';
 import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
 import { Profile } from './entities/profile.entity';
+import { ProfileQueryDto } from './dto/profile-query.dto';
 
 @Controller('profiles')
 export class ProfileController {
@@ -44,8 +46,19 @@ export class ProfileController {
   }
 
   @Get()
-  async findAll(): Promise<Profile[]> {
-    return await this.profileService.findAll();
+  async findAll(@Query() query: ProfileQueryDto): Promise<Profile[]> {
+    const { sortBy, orderBy, page, limit, username } = query;
+    return await this.profileService.findAll(
+      username,
+      {
+        page,
+        limit,
+      },
+      {
+        sortBy,
+        orderBy,
+      },
+    );
   }
 
   @Get(':id')

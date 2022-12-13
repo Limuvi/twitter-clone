@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { profile } from 'console';
+import { ILike, Repository } from 'typeorm';
 import {
   AlreadyExistsError,
   ERROR_MESSAGES,
   NotFoundError,
 } from '../common/errors';
+import { PaginationOptions, SortingOptions } from '../common/types';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Following } from './entities/following.entity';
@@ -85,8 +87,32 @@ export class ProfileService {
     return !!follower;
   }
 
-  findAll(): Promise<Profile[]> {
-    return this.profilesRepository.find();
+  async findAll(
+    username: string,
+    paginationOptions?: PaginationOptions,
+    sortingOptions?: SortingOptions,
+  ): Promise<Profile[]> {
+    const { sortBy = 'numberOfFollowers', orderBy = 'DESC' } = sortingOptions;
+    const { page = 1, limit = 10 } = paginationOptions;
+
+    const sortByField =
+      sortBy === 'numberOfFollowers' ? `"${sortBy}"` : `profile.${sortBy}`;
+
+    const profiles = await this.profilesRepository
+      .createQueryBuilder('profile')
+      .select()
+      .addSelect('COUNT(followings.followerId)::int', 'numberOfFollowers')
+      .addSelect('COUNT(followers.followingId)::int', 'numberOfFollowings')
+      .leftJoin('profile.followings', 'followings')
+      .leftJoin('profile.followers', 'followers')
+      .where(username ? { username: ILike(`%${username}%`) } : {})
+      .groupBy('profile.id')
+      .orderBy({ [sortByField]: orderBy })
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    return profiles;
   }
 
   async findFollowersById(id: string): Promise<Profile[]> {

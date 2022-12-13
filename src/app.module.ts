@@ -27,6 +27,7 @@ import { FileModule } from './file/file.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { Following } from './profile/entities/following.entity';
+import './common/polyfills';
 
 @Module({
   imports: [
