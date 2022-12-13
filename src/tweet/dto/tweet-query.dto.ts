@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsNumber,
   IsNumberString,
@@ -24,6 +25,11 @@ export class TweetQueryDto {
   @IsOptional()
   @IsUUID(undefined, { each: true })
   profileId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true')
+  isOnlyMedia: boolean;
 
   @IsOptional()
   @IsIn(['createdAt', 'likesNumber'])

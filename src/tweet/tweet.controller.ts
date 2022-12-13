@@ -18,7 +18,6 @@ import { CreateTweetDto } from './dto/create-tweet.dto';
 import { UpdateTweetDto } from './dto/update-tweet.dto';
 import { CurrentUser } from '../common/decorators';
 import { AuthGuard } from '../common/guards';
-import { ERROR_MESSAGES, NotFoundError } from '../common/errors';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { ImagesInterceptor } from '../common/interceptors/image.interceptor';
@@ -78,11 +77,12 @@ export class TweetController {
     @Query() query: TweetQueryDto,
     @CurrentUser('id') userId: number,
   ): Promise<Tweet[]> {
-    const { page, limit, sortBy, orderBy, profileId } = query;
+    const { page, limit, sortBy, orderBy, profileId, isOnlyMedia } = query;
     return await this.tweetService.findTweets(
       { page, limit },
       { sortBy, orderBy },
       profileId,
+      isOnlyMedia,
       userId,
     );
   }
@@ -93,11 +93,12 @@ export class TweetController {
     @Query() query: TweetQueryDto,
     @CurrentUser('id') userId: number,
   ): Promise<Tweet[]> {
-    const { page, limit, sortBy, orderBy } = query;
+    const { page, limit, sortBy, orderBy, isOnlyMedia } = query;
     return await this.tweetService.findFollowingsTweets(
       { page, limit },
       { sortBy, orderBy },
       userId,
+      isOnlyMedia,
     );
   }
 

@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, In, Not, Repository, TreeRepository } from 'typeorm';
+import {
+  DeleteResult,
+  In,
+  IsNull,
+  Not,
+  Repository,
+  TreeRepository,
+} from 'typeorm';
 import {
   AccessDeniedError,
   ERROR_MESSAGES,
@@ -106,6 +113,7 @@ export class TweetService {
     paginationOptions: PaginationOptions,
     sortingOptions: SortingOptions,
     profileId?: string,
+    isOnlyMedia?: boolean,
     userId?: number,
   ): Promise<Tweet[]> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
@@ -131,7 +139,11 @@ export class TweetService {
       .leftJoinAndSelect('tweet.author', 'profile')
       .leftJoinAndSelect('tweet.parentRecord', 'parentRecord')
       .leftJoinAndSelect('tweet.parentAuthor', 'parentAuthor')
-      .where({ isComment: false, author: profileId ? { id: profileId } : {} })
+      .where({
+        isComment: false,
+        author: profileId ? { id: profileId } : {},
+      })
+      .andWhere(isOnlyMedia ? { imageNames: Not([]) } : {})
       .andWhere(privacyCondtions)
       .orderBy({ ['tweet.' + sortBy]: orderBy })
       .skip((page - 1) * limit)
@@ -143,6 +155,7 @@ export class TweetService {
     paginationOptions: PaginationOptions,
     sortingOptions: SortingOptions,
     userId: number,
+    isOnlyMedia?: boolean,
   ): Promise<Tweet[]> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
     const { page = 1, limit = 10 } = paginationOptions;
@@ -167,6 +180,7 @@ export class TweetService {
         },
       )
       .where({ isComment: false })
+      .andWhere(isOnlyMedia ? { imageNames: Not([]) } : {})
       .orderBy({ ['tweet.' + sortBy]: orderBy })
       .skip((page - 1) * limit)
       .take(limit)
