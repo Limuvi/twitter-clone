@@ -39,8 +39,9 @@ export class ProfileController {
   async addFollower(
     @Param('id', new ParseUUIDPipe({ version: '4' })) followingId: string,
     @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<void> {
-    await this.profileService.addFollower(userId, followingId);
+    await this.profileService.addFollower(profileId, followingId);
 
     return;
   }
@@ -85,6 +86,12 @@ export class ProfileController {
   async findFollowingById(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<Profile[]> {
+    const profile = await this.profileService.findById(id);
+
+    if (!profile) {
+      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
+    }
+
     return await this.profileService.findFollowingsById(id);
   }
 
@@ -104,9 +111,9 @@ export class ProfileController {
   @Delete(':id/followers')
   async deleteFollower(
     @Param('id', new ParseUUIDPipe({ version: '4' })) followingId: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<void> {
-    await this.profileService.deleteFollower(userId, followingId);
+    await this.profileService.deleteFollower(profileId, followingId);
     return;
   }
 }

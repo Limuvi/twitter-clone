@@ -39,40 +39,38 @@ export class TweetService {
 
   createComment(
     parentId: string,
-    userId: number,
+    profileId: string,
     dto: CreateCommentDto,
     images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return this.create(parentId, true, userId, dto, images);
+    return this.create(parentId, true, profileId, dto, images);
   }
 
   createRetweet(
     parentId: string,
-    userId: number,
+    profileId: string,
     dto: CreateTweetDto,
     images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return this.create(parentId, false, userId, dto, images);
+    return this.create(parentId, false, profileId, dto, images);
   }
 
   createTweet(
-    userId: number,
+    profileId: string,
     dto: CreateTweetDto,
     images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return this.create(null, false, userId, dto, images);
+    return this.create(null, false, profileId, dto, images);
   }
 
   async create(
     parentId: string,
     isComment: boolean,
-    userId: number,
+    profileId: string,
     dto: CreateCommentDto | CreateTweetDto,
     images?: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    const profile = await this.profilesService.findByUserId(userId);
-
-    if (!profile) {
+    if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
@@ -93,7 +91,8 @@ export class TweetService {
         ...dto,
         isComment,
         isPrivate: parentRecord.isPrivate,
-        author: profile,
+        // author: { id: profileId },
+        authorId: profileId,
         parentRecord,
         parentAuthorId: parentRecord.authorId,
         imageNames,
@@ -103,31 +102,30 @@ export class TweetService {
     return await this.tweetsRepository.save({
       ...dto,
       isComment,
-      author: { id: profile.id },
+      author: { id: profileId },
       imageNames,
     });
   }
 
-  async addLike(id: string, userId: number): Promise<Tweet> {
-    return await this.toggleLike(id, userId, false);
+  async addLike(id: string, profileId: string): Promise<Tweet> {
+    return await this.toggleLike(id, profileId, false);
   }
 
-  async addBookmark(tweetId: string, userId: number): Promise<void> {
-    const tweet = await this.findById(tweetId, userId);
-    const profile = await this.profilesService.findByUserId(userId);
+  async addBookmark(tweetId: string, profileId: string): Promise<void> {
+    const tweet = await this.findById(tweetId, profileId);
 
-    if (!profile) {
+    if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
     const bookmark = await this.bookmarksRepository.findOne({
-      where: { tweetId, profileId: profile.id },
+      where: { tweetId, profileId: profileId },
     });
 
     if (!bookmark) {
       await this.bookmarksRepository.insert({
         tweet,
-        profile,
+        profileId,
       });
     }
   }
@@ -137,7 +135,7 @@ export class TweetService {
     sortingOptions: SortingOptions,
     profileId?: string,
     isOnlyMedia?: boolean,
-    userId?: number,
+    currentProfileId?: string,
   ): Promise<Tweet[]> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
     const { page = 1, limit = 10 } = paginationOptions;
@@ -145,11 +143,15 @@ export class TweetService {
     const privacyCondtions: object[] = [{ isPrivate: false }];
     let followings = [];
 
-    if (userId) {
-      const profile = await this.profilesService.findByUserId(userId);
-      followings = await this.profilesService.findFollowingsByProfile(profile);
+    if (currentProfileId) {
+      followings = await this.profilesService.findFollowingsById(
+        currentProfileId,
+      );
 
-      const followingIds = [...followings.map(({ id }) => id), profile.id];
+      const followingIds = [
+        ...followings.map(({ id }) => id),
+        currentProfileId,
+      ];
 
       privacyCondtions.push({
         isPrivate: true,
@@ -177,15 +179,13 @@ export class TweetService {
   async findFollowingsTweets(
     paginationOptions: PaginationOptions,
     sortingOptions: SortingOptions,
-    userId: number,
+    profileId: string,
     isOnlyMedia?: boolean,
   ): Promise<Tweet[]> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
     const { page = 1, limit = 10 } = paginationOptions;
 
-    const profile = await this.profilesService.findByUserId(userId);
-
-    if (!profile) {
+    if (!profileId) {
       return this.findTweets(paginationOptions, sortingOptions);
     }
 
@@ -199,7 +199,7 @@ export class TweetService {
         'followings',
         'followings.followerId = :followerId',
         {
-          followerId: profile.id,
+          followerId: profileId,
         },
       )
       .where({ isComment: false })
@@ -210,10 +210,8 @@ export class TweetService {
       .getMany();
   }
 
-  async findBookmarks(userId: number): Promise<Tweet[]> {
-    const profile = await this.profilesService.findByUserId(userId);
-
-    if (!profile) {
+  async findBookmarks(profileId: string): Promise<Tweet[]> {
+    if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
@@ -223,14 +221,14 @@ export class TweetService {
         'tweet.bookmarks',
         'bookmark',
         'bookmark.profileId = :profileId',
-        { profileId: profile.id },
+        { profileId },
       )
       .getMany();
   }
 
   async findById(
     id: string,
-    userId: number,
+    profileId: string,
     relations: {
       author?: boolean;
       parentRecord?: boolean;
@@ -249,11 +247,11 @@ export class TweetService {
     if (!tweet) {
       throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
     } else if (tweet.isPrivate) {
-      const profile = await this.profilesService.findByUserId(userId);
       const isFollower = await this.profilesService.isFollower(
-        profile?.id,
+        profileId,
         tweet.authorId,
       );
+
       if (!isFollower) {
         throw new AccessDeniedError(ERROR_MESSAGES.FOLLOWERS_ONLY_TWEET);
       }
@@ -265,10 +263,10 @@ export class TweetService {
     id: string,
     isComment: boolean,
     sortingOptions: SortingOptions,
-    userId: number,
+    profileId: string,
   ): Promise<any> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;
-    const tweet = await this.findById(id, userId, {
+    const tweet = await this.findById(id, profileId, {
       author: false,
       parentAuthor: false,
       parentRecord: false,
@@ -304,26 +302,26 @@ export class TweetService {
 
   async updateTweet(
     id: string,
-    userId: number,
+    profileId: string,
     dto: UpdateTweetDto,
     images: Array<Express.Multer.File>,
   ) {
     const { isPrivate } = dto;
-    return await this.update(id, userId, false, isPrivate, dto, images);
+    return await this.update(id, profileId, false, isPrivate, dto, images);
   }
 
   async updateComment(
     id: string,
-    userId: number,
+    profileId: string,
     dto: UpdateCommentDto,
     images: Array<Express.Multer.File>,
   ) {
-    return await this.update(id, userId, true, null, dto, images);
+    return await this.update(id, profileId, true, null, dto, images);
   }
 
   async update(
     id: string,
-    userId: number,
+    profileId: string,
     isComment: boolean,
     isPrivateRecord: boolean,
     dto: UpdateTweetDto | UpdateCommentDto,
@@ -333,13 +331,12 @@ export class TweetService {
       where: { id },
       relations: { parentRecord: true },
     });
-    const profile = await this.profilesService.findByUserId(userId);
 
     if (!tweet || tweet.isComment !== isComment) {
       throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
-    } else if (!profile) {
+    } else if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
-    } else if (tweet.authorId !== profile.id) {
+    } else if (tweet.authorId !== profileId) {
       throw new AccessDeniedError();
     }
 
@@ -357,8 +354,8 @@ export class TweetService {
         .execute();
 
       if (isPrivate) {
-        const followers = await this.profilesService.findFollowersByProfile(
-          profile,
+        const followers = await this.profilesService.findFollowersById(
+          profileId,
         );
         await this.bookmarksRepository.delete({
           profileId: Not(In(followers)),
@@ -379,17 +376,16 @@ export class TweetService {
     return updated;
   }
 
-  async delete(id: string, userId: number): Promise<DeleteResult> {
+  async delete(id: string, profileId: string): Promise<DeleteResult> {
     const tweet = await this.tweetsRepository.findOne({
       where: { id },
     });
-    const profile = await this.profilesService.findByUserId(userId);
 
     if (!tweet) {
       throw new NotFoundError(ERROR_MESSAGES.TWEET_NOT_FOUND);
-    } else if (!profile) {
+    } else if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
-    } else if (tweet.authorId !== profile.id) {
+    } else if (tweet.authorId !== profileId) {
       throw new AccessDeniedError();
     }
     const { imageNames } = tweet;
@@ -401,17 +397,15 @@ export class TweetService {
     return await this.tweetsRepository.delete({ id });
   }
 
-  async deleteLike(id: string, userId: number): Promise<Tweet> {
-    return await this.toggleLike(id, userId, true);
+  async deleteLike(id: string, profileId: string): Promise<Tweet> {
+    return await this.toggleLike(id, profileId, true);
   }
 
-  async deleteBookmark(tweetId: string, userId: number): Promise<void> {
-    const profile = await this.profilesService.findByUserId(userId);
-
-    if (!profile) {
+  async deleteBookmark(tweetId: string, profileId: string): Promise<void> {
+    if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
-    const { id: profileId } = profile;
+
     const bookmark = await this.bookmarksRepository.findOne({
       where: { tweetId, profileId },
     });
@@ -420,23 +414,25 @@ export class TweetService {
       throw new NotFoundError(ERROR_MESSAGES.BOOKMARK_NOT_FOUND);
     }
 
-    await this.bookmarksRepository.delete({ tweetId, profileId: profile.id });
+    await this.bookmarksRepository.delete({ tweetId, profileId: profileId });
   }
 
-  protected async toggleLike(id: string, userId: number, isDeleting: boolean) {
-    const tweet = await this.findById(id, userId, {
+  protected async toggleLike(
+    id: string,
+    profileId: string,
+    isDeleting: boolean,
+  ) {
+    const tweet = await this.findById(id, profileId, {
       author: false,
       parentAuthor: false,
       parentRecord: false,
     });
-    const profile = await this.profilesService.findByUserId(userId);
 
-    if (!profile) {
+    if (!profileId) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
     const { id: tweetId } = tweet;
-    const { id: profileId } = profile;
     const like = await this.likesRepository
       .createQueryBuilder('like')
       .where('like.profile.id = :profileId', { profileId })

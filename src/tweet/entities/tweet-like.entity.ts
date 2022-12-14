@@ -1,4 +1,10 @@
-import { Entity, ManyToOne, PrimaryGeneratedColumn, RelationId } from 'typeorm';
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  RelationId,
+} from 'typeorm';
 import { Profile } from '../../profile/entities/profile.entity';
 import { Tweet } from './tweet.entity';
 
@@ -12,6 +18,8 @@ export class Like {
     onDelete: 'CASCADE',
   })
   tweet: Tweet;
+
+  @Column()
   @RelationId('tweet')
   tweetId: string;
 
@@ -21,6 +29,8 @@ export class Like {
     onDelete: 'CASCADE',
   })
   profile: Profile;
+
+  @Column()
   @RelationId('profile')
   profileId: string;
 }

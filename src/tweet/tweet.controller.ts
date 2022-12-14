@@ -34,9 +34,9 @@ export class TweetController {
   async createTweet(
     @Body() dto: CreateTweetDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<Tweet> {
-    return await this.tweetService.createTweet(userId, dto, images);
+    return await this.tweetService.createTweet(profileId, dto, images);
   }
 
   @UseGuards(AuthGuard)
@@ -45,10 +45,15 @@ export class TweetController {
   async createComment(
     @Body() dto: CreateCommentDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
     @Param('id', new ParseUUIDPipe({ version: '4' })) parentId: string,
   ): Promise<Tweet> {
-    return await this.tweetService.createComment(parentId, userId, dto, images);
+    return await this.tweetService.createComment(
+      parentId,
+      profileId,
+      dto,
+      images,
+    );
   }
 
   @UseGuards(AuthGuard)
@@ -57,34 +62,39 @@ export class TweetController {
   async retweet(
     @Body() dto: CreateTweetDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
     @Param('id', new ParseUUIDPipe({ version: '4' })) parentId: string,
   ): Promise<Tweet> {
-    return await this.tweetService.createRetweet(parentId, userId, dto, images);
+    return await this.tweetService.createRetweet(
+      parentId,
+      profileId,
+      dto,
+      images,
+    );
   }
 
   @UseGuards(AuthGuard)
   @Post(':id/likes')
   async createLike(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<Tweet> {
-    return await this.tweetService.addLike(id, userId);
+    return await this.tweetService.addLike(id, profileId);
   }
 
   @UseGuards(AuthGuard)
   @Post(':id/bookmarks')
   async addBookmark(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentUser('id') userId: number,
-  ): Promise<void> {
-    return await this.tweetService.addBookmark(id, userId);
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser('profileId') profileId: string,
+  ): Promise<void> {    
+    return await this.tweetService.addBookmark(id, profileId);
   }
 
   @Get()
   async findAll(
     @Query() query: TweetQueryDto,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') currentProfileId: string,
   ): Promise<Tweet[]> {
     const { page, limit, sortBy, orderBy, profileId, isOnlyMedia } = query;
     return await this.tweetService.findTweets(
@@ -92,7 +102,7 @@ export class TweetController {
       { sortBy, orderBy },
       profileId,
       isOnlyMedia,
-      userId,
+      currentProfileId,
     );
   }
 
@@ -100,29 +110,31 @@ export class TweetController {
   @Get('followings')
   async findFollowingsTweets(
     @Query() query: TweetQueryDto,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<Tweet[]> {
     const { page, limit, sortBy, orderBy, isOnlyMedia } = query;
     return await this.tweetService.findFollowingsTweets(
       { page, limit },
       { sortBy, orderBy },
-      userId,
+      profileId,
       isOnlyMedia,
     );
   }
 
   @UseGuards(AuthGuard)
   @Get('bookmarks')
-  async getBookmarks(@CurrentUser('id') userId: number): Promise<Tweet[]> {
-    return await this.tweetService.findBookmarks(userId);
+  async getBookmarks(
+    @CurrentUser('profileId') profileId: string,
+  ): Promise<Tweet[]> {
+    return await this.tweetService.findBookmarks(profileId);
   }
 
   @Get([':id', 'comments/:id'])
   async findTweetById(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<Tweet> {
-    const tweet = await this.tweetService.findById(id, userId);
+    const tweet = await this.tweetService.findById(id, profileId);
 
     return tweet;
   }
@@ -130,7 +142,7 @@ export class TweetController {
   @Get(':id/comments')
   async findCommentsTreeById(
     @Param('id') id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
     @Query() query: TweetQueryDto,
   ): Promise<any> {
     const { sortBy, orderBy } = query;
@@ -141,14 +153,14 @@ export class TweetController {
         sortBy,
         orderBy,
       },
-      userId,
+      profileId,
     );
   }
 
   @Get(':id/retweets')
   async findRetweetsTreeById(
     @Param('id') id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
     @Query() query: TweetQueryDto,
   ): Promise<any> {
     const { sortBy, orderBy } = query;
@@ -159,7 +171,7 @@ export class TweetController {
         sortBy,
         orderBy,
       },
-      userId,
+      profileId,
     );
   }
 
@@ -168,11 +180,11 @@ export class TweetController {
   @UseInterceptors(ImagesInterceptor())
   async updateTweet(
     @Param('id') id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
     @Body() dto: UpdateTweetDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return await this.tweetService.updateTweet(id, userId, dto, images);
+    return await this.tweetService.updateTweet(id, profileId, dto, images);
   }
 
   @UseGuards(AuthGuard)
@@ -180,11 +192,11 @@ export class TweetController {
   @UseInterceptors(ImagesInterceptor())
   async updateComment(
     @Param('id') id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
     @Body() dto: UpdateCommentDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
   ): Promise<Tweet> {
-    return await this.tweetService.updateComment(id, userId, dto, images);
+    return await this.tweetService.updateComment(id, profileId, dto, images);
   }
 
   @UseGuards(AuthGuard)
@@ -192,9 +204,9 @@ export class TweetController {
   @Delete([':id', 'comments/:id'])
   async delete(
     @Param('id') id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<void> {
-    await this.tweetService.delete(id, userId);
+    await this.tweetService.delete(id, profileId);
     return;
   }
 
@@ -203,9 +215,9 @@ export class TweetController {
   @Delete(':id/bookmarks')
   async deleteBookmark(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<void> {
-    return await this.tweetService.deleteBookmark(id, userId);
+    return await this.tweetService.deleteBookmark(id, profileId);
   }
 
   @UseGuards(AuthGuard)
@@ -213,8 +225,8 @@ export class TweetController {
   @Delete(':id/likes')
   async deleteLike(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('profileId') profileId: string,
   ): Promise<Tweet> {
-    return await this.tweetService.deleteLike(id, userId);
+    return await this.tweetService.deleteLike(id, profileId);
   }
 }

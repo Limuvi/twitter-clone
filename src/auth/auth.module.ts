@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { SessionModule } from '../session/session.module';
 import { MailModule } from '../mail/mail.module';
 import { VerificationModule } from '../verification/verification.module';
+import { ProfileModule } from '../profile/profile.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { VerificationModule } from '../verification/verification.module';
     SessionModule,
     MailModule,
     VerificationModule,
+    ProfileModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],

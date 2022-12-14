@@ -25,6 +25,7 @@ import {
 } from '../common/errors';
 import { Session } from '../session/types/session.type';
 import { AuthTokensDto } from './dto/auth-tokens.dto';
+import { ProfileService } from '../profile/profile.service';
 
 @Injectable()
 export class AuthService {
@@ -40,6 +41,7 @@ export class AuthService {
     private sessionService: SessionService,
     private mailService: MailService,
     private verificationService: VerificationService,
+    private profilesService: ProfileService,
   ) {
     this.refreshTokenTTL = configService.get('REFRESH_TOKEN_EXPIRATION_TIME');
     this.accessTokenTTL = this.configService.get(
@@ -88,10 +90,11 @@ export class AuthService {
     user: ValidatedUserDto,
     info: PrivacyInfoData,
   ): Promise<AuthTokensDto> {
-    const accessToken = this.getAccessToken(user);
-    const refreshToken = await this.getRefreshToken(user.id, info);
+    const { id, email } = user;
+    const accessToken = await this.getAccessToken(id);
+    const refreshToken = await this.getRefreshToken(id, info);
 
-    await this.mailService.sendLoginNotificationMail(user.email, info);
+    await this.mailService.sendLoginNotificationMail(email, info);
 
     return { accessToken, refreshToken };
   }
@@ -185,13 +188,14 @@ export class AuthService {
     if (!key) {
       throw new InvalidRefreshSessionError();
     }
-    const accessToken = this.getAccessToken({ id: userId });
+    const accessToken = await this.getAccessToken(userId);
 
     return { refreshToken, accessToken };
   }
 
-  private getAccessToken({ id }: CurrentUserData): string {
-    const payload = { id };
+  private async getAccessToken(id: number): Promise<string> {
+    const profile = await this.profilesService.findByUserId(id);
+    const payload: CurrentUserData = { id, profileId: profile.id };
     const token = this.jwtService.sign(payload, {
       secret: this.accessTokenSecret,
       expiresIn: `${this.accessTokenTTL}s`,

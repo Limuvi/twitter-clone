@@ -37,16 +37,15 @@ export class ProfileService {
     return await this.profilesRepository.save({ ...dto, userId });
   }
 
-  async addFollower(userId: number, followingId: string): Promise<void> {
-    const follower = await this.findByUserId(userId);
+  async addFollower(profileId: string, followingId: string): Promise<void> {
     const following = await this.findById(followingId);
 
-    if (!follower || !following) {
+    if (!profileId || !following) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
     await this.followersRepository.save({
-      follower,
+      followerId: profileId,
       following,
     });
   }
@@ -117,31 +116,7 @@ export class ProfileService {
   }
 
   async findFollowersById(id: string): Promise<Profile[]> {
-    const profile = await this.findById(id);
-
-    if (!profile) {
-      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
-    }
-
-    const followers = await this.findFollowersByProfile(profile);
-
-    return followers;
-  }
-
-  //dry вышел из чата
-  async findFollowingsById(id: string): Promise<Profile[]> {
-    const profile = await this.findById(id);
-
-    if (!profile) {
-      throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
-    }
-
-    const following = await this.findFollowingsByProfile(profile);
-    return following;
-  }
-
-  async findFollowersByProfile(profile: Profile): Promise<Profile[]> {
-    if (!profile) {
+    if (!id) {
       return [];
     }
 
@@ -152,7 +127,7 @@ export class ProfileService {
         'follower',
         'follower.followingId = :id',
         {
-          id: profile.id,
+          id,
         },
       )
       .getMany();
@@ -160,8 +135,8 @@ export class ProfileService {
     return followers;
   }
 
-  async findFollowingsByProfile(profile: Profile): Promise<Profile[]> {
-    if (!profile) {
+  async findFollowingsById(id: string): Promise<Profile[]> {
+    if (!id) {
       return [];
     }
 
@@ -172,13 +147,53 @@ export class ProfileService {
         'following',
         'following.followerId = :id',
         {
-          id: profile.id,
+          id,
         },
       )
       .getMany();
 
     return following;
   }
+
+  // async findFollowersByProfile(profile: Profile): Promise<Profile[]> {
+  //   if (!profile) {
+  //     return [];
+  //   }
+
+  //   const followers = await this.profilesRepository
+  //     .createQueryBuilder('profile')
+  //     .innerJoin(
+  //       'profile.followers',
+  //       'follower',
+  //       'follower.followingId = :id',
+  //       {
+  //         id: profile.id,
+  //       },
+  //     )
+  //     .getMany();
+
+  //   return followers;
+  // }
+
+  // async findFollowingsByProfile(profile: Profile): Promise<Profile[]> {
+  //   if (!profile) {
+  //     return [];
+  //   }
+
+  //   const following = await this.profilesRepository
+  //     .createQueryBuilder('profile')
+  //     .innerJoin(
+  //       'profile.followings',
+  //       'following',
+  //       'following.followerId = :id',
+  //       {
+  //         id: profile.id,
+  //       },
+  //     )
+  //     .getMany();
+
+  //   return following;
+  // }
 
   findById(id: string): Promise<Profile> {
     return this.profilesRepository.findOneBy({ id });
@@ -215,16 +230,15 @@ export class ProfileService {
     return upserted.raw;
   }
 
-  async deleteFollower(userId: number, followingId: string): Promise<void> {
-    const follower = await this.findByUserId(userId);
+  async deleteFollower(profileId: string, followingId: string): Promise<void> {
     const following = await this.findById(followingId);
 
-    if (!follower || !following) {
+    if (!profileId || !following) {
       throw new NotFoundError(ERROR_MESSAGES.PROFILE_NOT_FOUND);
     }
 
     await this.followersRepository.delete({
-      followerId: follower.id,
+      followerId: profileId,
       followingId,
     });
   }
