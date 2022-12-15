@@ -21,7 +21,7 @@ import { Tweet } from './entities/tweet.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { Like } from './entities/tweet-like.entity';
 import { FileService } from '../file/file.service';
-import { PaginationOptions, SortingOptions } from '../common/types';
+import { IPaginationOptions, ISortingOptions } from '../common/types';
 import { Bookmark } from './entities/tweet-bookmark.entity';
 
 @Injectable()
@@ -131,8 +131,8 @@ export class TweetService {
   }
 
   async findTweets(
-    paginationOptions: PaginationOptions,
-    sortingOptions: SortingOptions,
+    paginationOptions: IPaginationOptions,
+    sortingOptions: ISortingOptions,
     profileId?: string,
     isOnlyMedia?: boolean,
     currentProfileId?: string,
@@ -177,8 +177,8 @@ export class TweetService {
   }
 
   async findFollowingsTweets(
-    paginationOptions: PaginationOptions,
-    sortingOptions: SortingOptions,
+    paginationOptions: IPaginationOptions,
+    sortingOptions: ISortingOptions,
     profileId: string,
     isOnlyMedia?: boolean,
   ): Promise<Tweet[]> {
@@ -262,7 +262,7 @@ export class TweetService {
   async findDescendantsTreeById(
     id: string,
     isComment: boolean,
-    sortingOptions: SortingOptions,
+    sortingOptions: ISortingOptions,
     profileId: string,
   ): Promise<any> {
     const { sortBy = 'createdAt', orderBy = 'DESC' } = sortingOptions;

@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { CurrentUserData } from '../types';
+import { ICurrentUser } from '../types';
 
 export const CurrentUser = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
@@ -7,7 +7,7 @@ export const CurrentUser = createParamDecorator(
 
     if (request.currentUser) {
       const { id, profileId } = request.currentUser;
-      const currentUser: CurrentUserData = { id, profileId };
+      const currentUser: ICurrentUser = { id, profileId };
 
       return data ? currentUser?.[data] : currentUser;
     }

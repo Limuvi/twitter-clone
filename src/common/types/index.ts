@@ -1,19 +1,6 @@
-export type CurrentUserData = {
-  id: number;
-  profileId: string;
-};
+import { ICurrentUser } from './current-user.interface';
+import { IPaginationOptions } from './pagination-options.interface';
+import { IPrivacyInfo } from './privacy-info.interface';
+import { ISortingOptions } from './sorting-options.interface';
 
-export type PrivacyInfoData = {
-  ip: string;
-  userAgent: string;
-};
-
-export type PaginationOptions = {
-  page: number;
-  limit: number;
-};
-
-export type SortingOptions = {
-  sortBy: string;
-  orderBy: 'ASC' | 'DESC';
-};
+export { ICurrentUser, IPaginationOptions, IPrivacyInfo, ISortingOptions };

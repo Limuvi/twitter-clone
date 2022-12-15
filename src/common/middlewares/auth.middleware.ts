@@ -1,10 +1,10 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
-import { CurrentUserData } from '../types';
+import { ICurrentUser } from '../types';
 
 export interface RequestModel extends Request {
-  currentUser: CurrentUserData;
+  currentUser: ICurrentUser;
 }
 
 @Injectable()

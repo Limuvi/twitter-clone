@@ -14,7 +14,7 @@ import { Response } from 'express';
 import { CurrentUser, PrivacyInfo, RefreshToken } from '../common/decorators';
 import { UnathorizedExceptionFilter } from '../common/exception-filters/unathorized-exception.filter';
 import { AuthGuard } from '../common/guards';
-import { CurrentUserData, PrivacyInfoData } from '../common/types';
+import { ICurrentUser, IPrivacyInfo } from '../common/types';
 import { Session } from '../session/types/session.type';
 import { AuthService } from './auth.service';
 import { AuthTokensDto } from './dto/auth-tokens.dto';
@@ -50,7 +50,7 @@ export class AuthController {
   @Post('signin')
   async signIn(
     @Body() dto: SignInDto,
-    @PrivacyInfo() info: PrivacyInfoData,
+    @PrivacyInfo() info: IPrivacyInfo,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthTokensDto> {
     const user = await this.authService.validateUser(dto);
@@ -86,8 +86,8 @@ export class AuthController {
   @Post('refresh-token')
   async refreshToken(
     @RefreshToken() token: string,
-    @CurrentUser() user: CurrentUserData,
-    @PrivacyInfo() info: PrivacyInfoData,
+    @CurrentUser() user: ICurrentUser,
+    @PrivacyInfo() info: IPrivacyInfo,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthTokensDto> {
     const { id } = user;
@@ -107,7 +107,7 @@ export class AuthController {
   @Post('verify')
   async verify(
     @Body() dto: VerificationDto,
-    @PrivacyInfo() info: PrivacyInfoData,
+    @PrivacyInfo() info: IPrivacyInfo,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthTokensDto> {
     const user = await this.authService.verifyUser(dto);

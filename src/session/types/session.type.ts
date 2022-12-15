@@ -1,7 +1,7 @@
-import { PrivacyInfoData } from '../../common/types';
+import { IPrivacyInfo } from '../../common/types';
 
 export type Session = {
   userId: number;
   token: string;
   expirationTime: number;
-} & PrivacyInfoData;
+} & IPrivacyInfo;

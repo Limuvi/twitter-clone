@@ -7,7 +7,7 @@ import {
   ERROR_MESSAGES,
   NotFoundError,
 } from '../common/errors';
-import { PaginationOptions, SortingOptions } from '../common/types';
+import { IPaginationOptions, ISortingOptions } from '../common/types';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Following } from './entities/following.entity';
@@ -89,8 +89,8 @@ export class ProfileService {
 
   async findAll(
     username: string,
-    paginationOptions?: PaginationOptions,
-    sortingOptions?: SortingOptions,
+    paginationOptions?: IPaginationOptions,
+    sortingOptions?: ISortingOptions,
   ): Promise<Profile[]> {
     const { sortBy = 'numberOfFollowers', orderBy = 'DESC' } = sortingOptions;
     const { page = 1, limit = 10 } = paginationOptions;

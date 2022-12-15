@@ -10,7 +10,7 @@ import { UserService } from '../user/user.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { SessionService } from '../session/session.service';
-import { CurrentUserData, PrivacyInfoData } from '../common/types';
+import { ICurrentUser, IPrivacyInfo } from '../common/types';
 import { User } from '../user/entities/user.entity';
 import { MailService } from '../mail/mail.service';
 import { ValidatedUserDto } from '../user/dto/validated-user.dto';
@@ -88,7 +88,7 @@ export class AuthService {
 
   async createSession(
     user: ValidatedUserDto,
-    info: PrivacyInfoData,
+    info: IPrivacyInfo,
   ): Promise<AuthTokensDto> {
     const { id, email } = user;
     const accessToken = await this.getAccessToken(id);
@@ -172,7 +172,7 @@ export class AuthService {
 
   async replaceSession(
     userId: number,
-    privacyInfo: PrivacyInfoData,
+    privacyInfo: IPrivacyInfo,
     token: string,
   ): Promise<AuthTokensDto> {
     const refreshToken: string = v4();
@@ -195,7 +195,7 @@ export class AuthService {
 
   private async getAccessToken(id: number): Promise<string> {
     const profile = await this.profilesService.findByUserId(id);
-    const payload: CurrentUserData = { id, profileId: profile.id };
+    const payload: ICurrentUser = { id, profileId: profile.id };
     const token = this.jwtService.sign(payload, {
       secret: this.accessTokenSecret,
       expiresIn: `${this.accessTokenTTL}s`,
@@ -205,7 +205,7 @@ export class AuthService {
 
   private async getRefreshToken(
     userId: number,
-    privacyInfo: PrivacyInfoData,
+    privacyInfo: IPrivacyInfo,
   ): Promise<string> {
     const token: string = v4();
     const key = await this.sessionService.create({

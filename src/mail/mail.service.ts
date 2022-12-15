@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { SentMessageInfo } from 'nodemailer';
-import { PrivacyInfoData } from '../common/types';
+import { IPrivacyInfo } from '../common/types';
 
 @Injectable()
 export class MailService {
@@ -24,7 +24,7 @@ export class MailService {
 
   async sendLoginNotificationMail(
     email: string,
-    privacyInfo: PrivacyInfoData,
+    privacyInfo: IPrivacyInfo,
   ): Promise<SentMessageInfo> {
     const { ip, userAgent } = privacyInfo;
     const result = await this.mailerService.sendMail({
