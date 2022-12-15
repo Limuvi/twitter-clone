@@ -2,10 +2,13 @@ import {
   Column,
   Entity,
   JoinColumn,
+  ManyToMany,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Chat } from '../../chat/entities/chat.entity';
+import { Message } from '../../chat/entities/message.entity';
 import { VirtualColumn } from '../../common/decorators';
 import { Bookmark } from '../../tweet/entities/tweet-bookmark.entity';
 import { Like } from '../../tweet/entities/tweet-like.entity';
@@ -68,4 +71,10 @@ export class Profile {
     onDelete: 'CASCADE',
   })
   followings: Following[];
+
+  @OneToMany(() => Message, (m) => m.profile)
+  messages: Message[];
+
+  @ManyToMany(() => Chat)
+  chats: Chat[];
 }

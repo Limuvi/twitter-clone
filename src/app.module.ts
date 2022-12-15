@@ -29,6 +29,8 @@ import { join } from 'path';
 import { Following } from './profile/entities/following.entity';
 import './common/polyfills';
 import { Bookmark } from './tweet/entities/tweet-bookmark.entity';
+import { Message } from './chat/entities/message.entity';
+import { Chat } from './chat/entities/chat.entity';
 
 @Module({
   imports: [
@@ -43,7 +45,16 @@ import { Bookmark } from './tweet/entities/tweet-bookmark.entity';
       username: process.env.POSTGRES_USERNAME,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DATABASE,
-      entities: [Bookmark, Like, Tweet, Profile, Following, User],
+      entities: [
+        Bookmark,
+        Like,
+        Tweet,
+        Profile,
+        Following,
+        User,
+        Message,
+        Chat,
+      ],
       autoLoadEntities: true,
       synchronize: true,
       logging: ['error'],
