@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { profile } from 'console';
 import { ILike, Repository } from 'typeorm';
 import {
   AlreadyExistsError,
@@ -115,6 +114,34 @@ export class ProfileService {
     return profiles;
   }
 
+  async findFriendsById(id: string): Promise<Profile[]> {
+    if (!id) {
+      return [];
+    }
+
+    const friends = await this.profilesRepository
+      .createQueryBuilder('profile')
+      .innerJoin(
+        'profile.followers',
+        'follower',
+        'follower.followingId = :id',
+        {
+          id,
+        },
+      )
+      .innerJoin(
+        'profile.followings',
+        'following',
+        'following.followerId = :id',
+        {
+          id,
+        },
+      )
+      .getMany();
+
+    return friends;
+  }
+
   async findFollowersById(id: string): Promise<Profile[]> {
     if (!id) {
       return [];
@@ -154,46 +181,6 @@ export class ProfileService {
 
     return following;
   }
-
-  // async findFollowersByProfile(profile: Profile): Promise<Profile[]> {
-  //   if (!profile) {
-  //     return [];
-  //   }
-
-  //   const followers = await this.profilesRepository
-  //     .createQueryBuilder('profile')
-  //     .innerJoin(
-  //       'profile.followers',
-  //       'follower',
-  //       'follower.followingId = :id',
-  //       {
-  //         id: profile.id,
-  //       },
-  //     )
-  //     .getMany();
-
-  //   return followers;
-  // }
-
-  // async findFollowingsByProfile(profile: Profile): Promise<Profile[]> {
-  //   if (!profile) {
-  //     return [];
-  //   }
-
-  //   const following = await this.profilesRepository
-  //     .createQueryBuilder('profile')
-  //     .innerJoin(
-  //       'profile.followings',
-  //       'following',
-  //       'following.followerId = :id',
-  //       {
-  //         id: profile.id,
-  //       },
-  //     )
-  //     .getMany();
-
-  //   return following;
-  // }
 
   findById(id: string): Promise<Profile> {
     return this.profilesRepository.findOneBy({ id });
